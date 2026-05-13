@@ -146,6 +146,16 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-05-13 · `PackageNotFoundError: u1u2-bridge` при `importlib.metadata.version()`
+
+При планировании CLI-флага `--version` собирался использовать `importlib.metadata.version("u1u2-bridge")`, но проверка показала `PackageNotFoundError`: в `pyproject.toml` не было `[build-system]`, поэтому `uv sync` ставил только зависимости, а сам проект не устанавливался как distribution. Исправлено добавлением `[build-system] requires = ["hatchling"]` и `[tool.hatch.build.targets.wheel] packages = ["common"]`, после чего `uv sync` поставил `u1u2-bridge==0.1.0` editable.
+
+**Правило:** перед использованием `importlib.metadata.*` (в коде или ещё на этапе плана) — однострочной проверкой убедиться, что пакет реально установлен в `.venv`. Если нет — сначала `[build-system]` + `uv sync`, либо предусмотреть `try/except PackageNotFoundError` с фолбэком.
+
+**Проверка:** `uv run python -c "from importlib.metadata import version; print(version('u1u2-bridge'))"` должно печатать актуальную версию, не падать. Регрессионный тест: `tests/unit/test_crsf_bridge.py::TestGetVersion::test_returns_nonempty_string`.
+
+---
+
 ### 2026-05-13 · `uv trampoline failed to canonicalize script path` после переезда проекта
 
 При перемещении папки проекта с `Desktop\files\` в `Documents\Projects\` команда `mypy` упала с ошибкой *uv trampoline failed to canonicalize script path*. Причина — на Windows внутри `.venv\Scripts\` лежат тонкие .exe-трамплины (`mypy.exe`, `pytest.exe`, и т.д.), внутри которых **жёстко вшит абсолютный путь** к месту установки. После переезда они указывают на несуществующий путь.
