@@ -14,6 +14,7 @@
 
 import socket
 from importlib.metadata import PackageNotFoundError
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -25,6 +26,8 @@ from common.crsf_bridge import (
     open_serial,
     open_udp,
     parse_addr,
+    parse_env_text,
+    validate_env_text,
 )
 
 if TYPE_CHECKING:
@@ -258,3 +261,183 @@ class TestDryRun:
 
         assert main() == 0
         assert mock_signal.call_count == 0
+
+
+# --- parse_env_text & validate_env_text --------------------------------------
+
+
+_VALID_ENV = """\
+# u2 crsf-tx1 sample env
+SERIAL_DEV=/dev/ttyUSB-CRSF1
+BAUD=420000
+LISTEN=0.0.0.0:14550
+PEER=192.168.1.20:14550
+"""
+
+
+class TestParseEnvText:
+    """parse_env_text — синтаксический парсер systemd-style env-файлов."""
+
+    def test_happy_path(self) -> None:
+        env, errs = parse_env_text(_VALID_ENV)
+        assert errs == []
+        assert env == {
+            "SERIAL_DEV": "/dev/ttyUSB-CRSF1",
+            "BAUD": "420000",
+            "LISTEN": "0.0.0.0:14550",
+            "PEER": "192.168.1.20:14550",
+        }
+
+    def test_comments_and_blank_lines_ignored(self) -> None:
+        env, errs = parse_env_text("\n  # comment\nKEY=val\n\n# trailing\n")
+        assert errs == []
+        assert env == {"KEY": "val"}
+
+    def test_strips_matched_quotes(self) -> None:
+        """systemd допускает кавычки — снимаем парные одинарные/двойные."""
+        env, errs = parse_env_text("A=\"quoted\"\nB='single'\nC=unquoted\n")
+        assert errs == []
+        assert env == {"A": "quoted", "B": "single", "C": "unquoted"}
+
+    def test_value_with_equals_kept_intact(self) -> None:
+        """KEY=a=b=c → value должен быть 'a=b=c' (partition по первому =)."""
+        env, _ = parse_env_text("KEY=a=b=c\n")
+        assert env["KEY"] == "a=b=c"
+
+    def test_line_without_equals_is_error(self) -> None:
+        _, errs = parse_env_text("not_an_assignment\n")
+        assert len(errs) == 1
+        assert "no '='" in errs[0]
+
+    def test_empty_key_is_error(self) -> None:
+        _, errs = parse_env_text("=value\n")
+        assert len(errs) == 1
+        assert "empty key" in errs[0]
+
+
+class TestValidateEnvText:
+    """validate_env_text — семантический валидатор env-файла CRSF-моста."""
+
+    def test_happy_path_clean(self) -> None:
+        errors, warnings = validate_env_text(_VALID_ENV)
+        assert errors == []
+        assert warnings == []
+
+    def test_missing_required_key_is_error(self) -> None:
+        env = _VALID_ENV.replace("BAUD=420000\n", "")
+        errors, _ = validate_env_text(env)
+        assert any("missing required key: BAUD" in e for e in errors)
+
+    def test_non_integer_baud_is_error(self) -> None:
+        errors, _ = validate_env_text(_VALID_ENV.replace("BAUD=420000", "BAUD=fast"))
+        assert any("BAUD" in e and "not an integer" in e for e in errors)
+
+    def test_uncommon_baud_is_warning_not_error(self) -> None:
+        """Нестандартный baud — предупреждение, не ошибка (могут быть эксперименты)."""
+        errors, warnings = validate_env_text(_VALID_ENV.replace("BAUD=420000", "BAUD=57600"))
+        assert errors == []
+        assert any("BAUD=57600" in w for w in warnings)
+
+    def test_invalid_listen_is_error(self) -> None:
+        errors, _ = validate_env_text(_VALID_ENV.replace("LISTEN=0.0.0.0:14550", "LISTEN=garbage"))
+        assert any("LISTEN" in e and "invalid host:port" in e for e in errors)
+
+    def test_privileged_port_is_warning(self) -> None:
+        """Порт <1024 — предупреждение (требует root)."""
+        errors, warnings = validate_env_text(
+            _VALID_ENV.replace("LISTEN=0.0.0.0:14550", "LISTEN=0.0.0.0:80")
+        )
+        assert errors == []
+        assert any("LISTEN port 80" in w for w in warnings)
+
+    def test_windows_device_path_is_warning_not_error(self) -> None:
+        """SERIAL_DEV=COM3 — warning: deployable env-файл должен быть Linux-путь,
+        но удобно гонять --check-config на dev-машине, не блокируя проверку."""
+        errors, warnings = validate_env_text(
+            _VALID_ENV.replace("SERIAL_DEV=/dev/ttyUSB-CRSF1", "SERIAL_DEV=COM3")
+        )
+        assert errors == []
+        assert any("SERIAL_DEV" in w and "COM3" in w for w in warnings)
+
+
+# --- --check-config flag -----------------------------------------------------
+
+
+class TestCheckConfigFlag:
+    """--check-config валидирует env-файл и возвращает exit code 0/1/2."""
+
+    def test_valid_file_returns_zero(
+        self,
+        mocker: "MockerFixture",
+        tmp_path: Path,
+    ) -> None:
+        env_file = tmp_path / "crsf-tx1.env"
+        env_file.write_text(_VALID_ENV, encoding="utf-8")
+        mocker.patch("sys.argv", ["crsf_bridge.py", "--check-config", str(env_file)])
+        assert main() == 0
+
+    def test_invalid_file_returns_one(
+        self,
+        mocker: "MockerFixture",
+        tmp_path: Path,
+    ) -> None:
+        env_file = tmp_path / "bad.env"
+        env_file.write_text("SERIAL_DEV=/dev/x\nBAUD=fast\n")  # missing keys + bad BAUD
+        mocker.patch("sys.argv", ["crsf_bridge.py", "--check-config", str(env_file)])
+        assert main() == 1
+
+    def test_missing_file_returns_two(
+        self,
+        mocker: "MockerFixture",
+        tmp_path: Path,
+    ) -> None:
+        missing = tmp_path / "nope.env"
+        mocker.patch("sys.argv", ["crsf_bridge.py", "--check-config", str(missing)])
+        assert main() == 2
+
+    def test_check_config_warns_when_other_args_present(
+        self,
+        mocker: "MockerFixture",
+        tmp_path: Path,
+        caplog: "pytest.LogCaptureFixture",
+    ) -> None:
+        env_file = tmp_path / "ok.env"
+        env_file.write_text(_VALID_ENV, encoding="utf-8")
+        mocker.patch(
+            "sys.argv",
+            [
+                "crsf_bridge.py",
+                "--check-config",
+                str(env_file),
+                "--serial",
+                "/dev/foo",
+            ],
+        )
+        with caplog.at_level("WARNING"):
+            assert main() == 0
+        assert any("ignored" in r.message for r in caplog.records)
+
+    def test_check_config_does_not_open_serial_or_udp(
+        self,
+        mocker: "MockerFixture",
+        tmp_path: Path,
+    ) -> None:
+        """check-config — чисто bookkeeping, никаких open_serial/open_udp."""
+        env_file = tmp_path / "ok.env"
+        env_file.write_text(_VALID_ENV, encoding="utf-8")
+        mock_open_udp = mocker.patch("common.crsf_bridge.open_udp")
+        mock_open_serial = mocker.patch("common.crsf_bridge.open_serial")
+        mocker.patch("sys.argv", ["crsf_bridge.py", "--check-config", str(env_file)])
+        assert main() == 0
+        mock_open_udp.assert_not_called()
+        mock_open_serial.assert_not_called()
+
+    def test_missing_required_args_without_check_config_errors(
+        self,
+        mocker: "MockerFixture",
+    ) -> None:
+        """Без --check-config обязательны serial/listen/peer — иначе argparse error."""
+        mocker.patch("sys.argv", ["crsf_bridge.py"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 2  # argparse error exit code

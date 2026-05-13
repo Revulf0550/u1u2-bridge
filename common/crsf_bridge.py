@@ -62,6 +62,81 @@ def get_version() -> str:
         return "0.0.0+local"
 
 
+CRSF_COMMON_BAUDS = frozenset({115_200, 420_000, 921_600})
+REQUIRED_ENV_KEYS = ("SERIAL_DEV", "BAUD", "LISTEN", "PEER")
+MIN_USER_PORT = 1024
+MAX_PORT = 65_535
+
+
+def parse_env_text(text: str) -> tuple[dict[str, str], list[str]]:
+    """Распарсить содержимое systemd-style env-файла.
+
+    Возвращает (env, errors). Поддерживает: KEY=VALUE, # comments, пустые строки,
+    значения в одинарных/двойных кавычках. Не делает shell-eval и подстановок —
+    зеркало того, как systemd `EnvironmentFile=` читает файл.
+    """
+    env: dict[str, str] = {}
+    errors: list[str] = []
+    for line_no, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            errors.append(f"line {line_no}: no '=' in {line!r}")
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            errors.append(f"line {line_no}: empty key in {line!r}")
+            continue
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+            value = value[1:-1]
+        env[key] = value
+    return env, errors
+
+
+def validate_env_text(text: str) -> tuple[list[str], list[str]]:
+    """Проверить env-файл для CRSF-моста. Возвращает (errors, warnings).
+
+    Каждая запись — однострочное человекочитаемое сообщение. Errors → exit 1,
+    warnings допустимы. Файл считается валидным, если errors пустой.
+    """
+    env, errors = parse_env_text(text)
+    warnings: list[str] = []
+
+    for k in REQUIRED_ENV_KEYS:
+        if k not in env:
+            errors.append(f"missing required key: {k}")
+
+    if "BAUD" in env:
+        try:
+            baud = int(env["BAUD"])
+        except ValueError:
+            errors.append(f"BAUD={env['BAUD']!r}: not an integer")
+        else:
+            if baud not in CRSF_COMMON_BAUDS:
+                warnings.append(f"BAUD={baud}: not a common CRSF baud rate")
+
+    for k in ("LISTEN", "PEER"):
+        if k not in env:
+            continue
+        try:
+            _, port = parse_addr(env[k])
+        except ValueError as e:
+            errors.append(f"{k}={env[k]!r}: invalid host:port ({e})")
+            continue
+        if not MIN_USER_PORT <= port <= MAX_PORT:
+            warnings.append(f"{k} port {port}: outside [{MIN_USER_PORT}, {MAX_PORT}]")
+
+    if "SERIAL_DEV" in env:
+        dev = env["SERIAL_DEV"]
+        if not dev.startswith("/dev/"):
+            warnings.append(f"SERIAL_DEV={dev!r}: doesn't look like a Linux device path")
+
+    return errors, warnings
+
+
 def open_serial(dev: str, baud: int) -> serial.Serial:
     """Открыть serial-порт с настройками под CRSF (8N1, неблокирующее чтение)."""
     ser = serial.Serial(
@@ -100,17 +175,20 @@ def main() -> int:
         action="version",
         version=f"u1u2-bridge {get_version()}",
     )
-    p.add_argument("--serial", required=True, help="например /dev/ttyUSB-CRSF1")
+    p.add_argument("--serial", help="например /dev/ttyUSB-CRSF1")
     p.add_argument("--baud", type=int, default=CRSF_DEFAULT_BAUD)
     p.add_argument(
         "--listen",
-        required=True,
         help="ip:port для приёма от партнёра (обычно 0.0.0.0:14550)",
     )
     p.add_argument(
         "--peer",
-        required=True,
         help="ip:port партнёра, куда отправлять с UART",
+    )
+    p.add_argument(
+        "--check-config",
+        metavar="PATH",
+        help="проверить env-файл (KEY=VALUE) и выйти, без открытия устройств",
     )
     p.add_argument(
         "--dry-run",
@@ -125,6 +203,31 @@ def main() -> int:
         format="%(asctime)s %(levelname)s %(message)s",
     )
     log = logging.getLogger("crsf-bridge")
+
+    if args.check_config:
+        if args.serial or args.listen or args.peer:
+            log.warning("check-config mode: --serial/--listen/--peer ignored")
+        try:
+            with open(args.check_config, encoding="utf-8") as f:
+                text = f.read()
+        except OSError as e:
+            log.error("check-config: cannot read %s: %s", args.check_config, e)
+            return 2
+        errors, warnings = validate_env_text(text)
+        for w in warnings:
+            log.warning("check-config: %s", w)
+        for err in errors:
+            log.error("check-config: %s", err)
+        log.info("check-config: %d errors, %d warnings", len(errors), len(warnings))
+        return 1 if errors else 0
+
+    missing = [
+        name
+        for name, val in (("serial", args.serial), ("listen", args.listen), ("peer", args.peer))
+        if not val
+    ]
+    if missing:
+        p.error("the following arguments are required: --" + ", --".join(missing))
 
     listen = parse_addr(args.listen)
     peer = parse_addr(args.peer)

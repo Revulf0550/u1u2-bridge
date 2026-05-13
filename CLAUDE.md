@@ -123,6 +123,7 @@
 | Тест туннеля | `ping 10.10.0.2` (после WireGuard) |
 | Проверка RKMPP | `gst-inspect-1.0 mpph264enc` |
 | Preflight CRSF (без запуска моста) | `uv run python -m common.crsf_bridge --serial /dev/ttyUSB-CRSF1 --listen 0.0.0.0:14550 --peer 192.168.1.20:14550 --dry-run` |
+| Валидация env-файла CRSF | `uv run python -m common.crsf_bridge --check-config /etc/u1u2-bridge/crsf-tx1.env` |
 
 ### Зависимости (Python, локально)
 
