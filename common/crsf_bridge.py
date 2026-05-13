@@ -112,6 +112,11 @@ def main() -> int:
         required=True,
         help="ip:port партнёра, куда отправлять с UART",
     )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="открыть serial+UDP, залогировать привязку, выйти (без основного цикла)",
+    )
     p.add_argument("--log-level", default="INFO")
     args = p.parse_args()
 
@@ -132,6 +137,24 @@ def main() -> int:
     )
 
     sock = open_udp(listen)
+
+    if args.dry_run:
+        try:
+            ser_check = open_serial(args.serial, args.baud)
+        except (serial.SerialException, OSError) as e:
+            log.error("dry-run: uart open failed: %s", e)
+            sock.close()
+            return 1
+        log.info(
+            "dry-run: uart=%s @ %d ok, udp bound %s, peer %s:%d",
+            args.serial,
+            args.baud,
+            sock.getsockname(),
+            *peer,
+        )
+        ser_check.close()
+        sock.close()
+        return 0
 
     stop = {"flag": False}
 

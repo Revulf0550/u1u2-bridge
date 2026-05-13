@@ -17,6 +17,7 @@ from importlib.metadata import PackageNotFoundError
 from typing import TYPE_CHECKING
 
 import pytest
+import serial
 from common.crsf_bridge import (
     bytes_to_hex,
     get_version,
@@ -204,3 +205,56 @@ class TestVersionFlag:
         assert exc_info.value.code == 0
         captured = capsys.readouterr()
         assert "u1u2-bridge" in captured.out
+
+
+# --- --dry-run flag ----------------------------------------------------------
+
+
+class TestDryRun:
+    """--dry-run открывает serial+UDP, логирует привязку, выходит без основного цикла."""
+
+    _DRY_RUN_ARGV = [
+        "crsf_bridge.py",
+        "--serial",
+        "/dev/ttyUSB-CRSF1",
+        "--listen",
+        "0.0.0.0:14550",
+        "--peer",
+        "192.168.1.20:14550",
+        "--dry-run",
+    ]
+
+    def test_dry_run_opens_and_exits_zero(self, mocker: "MockerFixture") -> None:
+        """Ровно одно открытие serial (нет retry-цикла), оба ресурса закрыты, return 0."""
+        mocker.patch("sys.argv", self._DRY_RUN_ARGV)
+        mock_open_udp = mocker.patch("common.crsf_bridge.open_udp")
+        mock_open_serial = mocker.patch("common.crsf_bridge.open_serial")
+
+        assert main() == 0
+
+        mock_open_udp.assert_called_once()
+        mock_open_serial.assert_called_once_with("/dev/ttyUSB-CRSF1", 420_000)
+        mock_open_serial.return_value.close.assert_called_once()
+        mock_open_udp.return_value.close.assert_called_once()
+
+    def test_dry_run_serial_failure_returns_nonzero(self, mocker: "MockerFixture") -> None:
+        """Если UART не открылся — return 1, но UDP-сокет всё равно закрыт."""
+        mocker.patch("sys.argv", self._DRY_RUN_ARGV)
+        mock_open_udp = mocker.patch("common.crsf_bridge.open_udp")
+        mocker.patch(
+            "common.crsf_bridge.open_serial",
+            side_effect=serial.SerialException("device not found"),
+        )
+
+        assert main() == 1
+        mock_open_udp.return_value.close.assert_called_once()
+
+    def test_dry_run_does_not_install_signal_handlers(self, mocker: "MockerFixture") -> None:
+        """Гарантия, что dry-run выходит до сигнал-хендлеров и while-цикла."""
+        mocker.patch("sys.argv", self._DRY_RUN_ARGV)
+        mocker.patch("common.crsf_bridge.open_udp")
+        mocker.patch("common.crsf_bridge.open_serial")
+        mock_signal = mocker.patch("common.crsf_bridge.signal.signal")
+
+        assert main() == 0
+        assert mock_signal.call_count == 0
