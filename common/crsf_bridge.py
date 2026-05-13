@@ -30,6 +30,7 @@ import socket
 import sys
 import time
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from types import FrameType
 from typing import Any
 
@@ -137,6 +138,62 @@ def validate_env_text(text: str) -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+def _addr_port(addr: str | None) -> int | None:
+    """Достать порт из 'host:port'. None если пусто/не парсится — для cross-check."""
+    if not addr:
+        return None
+    try:
+        _, port = parse_addr(addr)
+    except ValueError:
+        return None
+    return port
+
+
+def cross_check_envs(
+    envs: list[tuple[str, dict[str, str]]],
+) -> tuple[list[str], list[str]]:
+    """Попарно проверить env-файлы CRSF на конфликты ресурсов и расхождения настроек.
+
+    Принимает список `(label, env_dict)`. `label` — короткое имя для сообщений.
+    Возвращает (errors, warnings). Меньше двух файлов — пустой результат.
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if len(envs) < 2:
+        return errors, warnings
+
+    for i, (label_a, env_a) in enumerate(envs):
+        for label_b, env_b in envs[i + 1 :]:
+            port_a = _addr_port(env_a.get("LISTEN"))
+            if port_a is not None and port_a == _addr_port(env_b.get("LISTEN")):
+                errors.append(f"{label_a} and {label_b} both LISTEN on port {port_a}")
+            dev_a = env_a.get("SERIAL_DEV")
+            if dev_a and dev_a == env_b.get("SERIAL_DEV"):
+                errors.append(f"{label_a} and {label_b} share SERIAL_DEV={dev_a}")
+            peer_a = env_a.get("PEER")
+            if peer_a and peer_a == env_b.get("PEER"):
+                warnings.append(f"{label_a} and {label_b} have identical PEER={peer_a}")
+
+    bauds = {env["BAUD"] for _, env in envs if "BAUD" in env}
+    if len(bauds) > 1:
+        warnings.append(f"BAUD differs across files: {', '.join(sorted(bauds))}")
+
+    peer_hosts: set[str] = set()
+    for _, env in envs:
+        peer = env.get("PEER")
+        if not peer:
+            continue
+        try:
+            host, _ = parse_addr(peer)
+        except ValueError:
+            continue
+        peer_hosts.add(host)
+    if len(peer_hosts) > 1:
+        warnings.append(f"PEER hosts differ across files: {', '.join(sorted(peer_hosts))}")
+
+    return errors, warnings
+
+
 def open_serial(dev: str, baud: int) -> serial.Serial:
     """Открыть serial-порт с настройками под CRSF (8N1, неблокирующее чтение)."""
     ser = serial.Serial(
@@ -188,7 +245,12 @@ def main() -> int:
     p.add_argument(
         "--check-config",
         metavar="PATH",
-        help="проверить env-файл (KEY=VALUE) и выйти, без открытия устройств",
+        nargs="+",
+        help=(
+            "проверить env-файл(ы) и выйти, без открытия устройств. "
+            "При двух+ файлах — попарный cross-check (LISTEN/SERIAL_DEV конфликты, "
+            "расхождения BAUD/PEER)."
+        ),
     )
     p.add_argument(
         "--dry-run",
@@ -207,19 +269,47 @@ def main() -> int:
     if args.check_config:
         if args.serial or args.listen or args.peer:
             log.warning("check-config mode: --serial/--listen/--peer ignored")
-        try:
-            with open(args.check_config, encoding="utf-8") as f:
-                text = f.read()
-        except OSError as e:
-            log.error("check-config: cannot read %s: %s", args.check_config, e)
+        parsed_envs: list[tuple[str, dict[str, str]]] = []
+        total_errors = 0
+        total_warnings = 0
+        io_failed = False
+        for path in args.check_config:
+            label = Path(path).name
+            try:
+                with open(path, encoding="utf-8") as f:
+                    text = f.read()
+            except OSError as e:
+                log.error("check-config [%s]: cannot read: %s", label, e)
+                io_failed = True
+                continue
+            env, _ = parse_env_text(text)
+            errors, warnings = validate_env_text(text)
+            for w in warnings:
+                log.warning("check-config [%s]: %s", label, w)
+            for err in errors:
+                log.error("check-config [%s]: %s", label, err)
+            total_errors += len(errors)
+            total_warnings += len(warnings)
+            parsed_envs.append((label, env))
+
+        if len(parsed_envs) >= 2:
+            x_errors, x_warnings = cross_check_envs(parsed_envs)
+            for w in x_warnings:
+                log.warning("check-config [cross]: %s", w)
+            for err in x_errors:
+                log.error("check-config [cross]: %s", err)
+            total_errors += len(x_errors)
+            total_warnings += len(x_warnings)
+
+        log.info(
+            "check-config: %d errors, %d warnings across %d file(s)",
+            total_errors,
+            total_warnings,
+            len(args.check_config),
+        )
+        if io_failed:
             return 2
-        errors, warnings = validate_env_text(text)
-        for w in warnings:
-            log.warning("check-config: %s", w)
-        for err in errors:
-            log.error("check-config: %s", err)
-        log.info("check-config: %d errors, %d warnings", len(errors), len(warnings))
-        return 1 if errors else 0
+        return 1 if total_errors else 0
 
     missing = [
         name

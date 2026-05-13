@@ -21,6 +21,7 @@ import pytest
 import serial
 from common.crsf_bridge import (
     bytes_to_hex,
+    cross_check_envs,
     get_version,
     main,
     open_serial,
@@ -441,3 +442,115 @@ class TestCheckConfigFlag:
         with pytest.raises(SystemExit) as exc_info:
             main()
         assert exc_info.value.code == 2  # argparse error exit code
+
+
+# --- cross_check_envs --------------------------------------------------------
+
+
+_TX1_ENV = """\
+SERIAL_DEV=/dev/ttyUSB-CRSF1
+BAUD=420000
+LISTEN=0.0.0.0:14550
+PEER=192.168.1.20:14550
+"""
+
+_TX2_ENV = """\
+SERIAL_DEV=/dev/ttyUSB-CRSF2
+BAUD=420000
+LISTEN=0.0.0.0:14551
+PEER=192.168.1.20:14551
+"""
+
+
+def _parse(text: str) -> dict[str, str]:
+    env, _ = parse_env_text(text)
+    return env
+
+
+class TestCrossCheckEnvs:
+    """cross_check_envs ловит конфликты ресурсов и расхождения настроек между файлами."""
+
+    def test_happy_path_tx1_tx2(self) -> None:
+        """Реальные tx1+tx2 из install.sh — никаких errors/warnings."""
+        errors, warnings = cross_check_envs(
+            [("crsf-tx1.env", _parse(_TX1_ENV)), ("crsf-tx2.env", _parse(_TX2_ENV))]
+        )
+        assert errors == []
+        assert warnings == []
+
+    def test_single_file_returns_nothing(self) -> None:
+        """Один файл — нечего сравнивать, пустой результат."""
+        errors, warnings = cross_check_envs([("crsf-tx1.env", _parse(_TX1_ENV))])
+        assert errors == []
+        assert warnings == []
+
+    def test_same_listen_port_is_error(self) -> None:
+        """Один LISTEN-порт на двух файлах = bind() conflict на машине."""
+        tx2_conflict = _TX2_ENV.replace("LISTEN=0.0.0.0:14551", "LISTEN=0.0.0.0:14550")
+        errors, _ = cross_check_envs([("tx1", _parse(_TX1_ENV)), ("tx2", _parse(tx2_conflict))])
+        assert any("LISTEN on port 14550" in e for e in errors)
+
+    def test_same_serial_dev_is_error(self) -> None:
+        """Один /dev/tty... в двух файлах = UART не откроется во втором процессе."""
+        tx2_conflict = _TX2_ENV.replace(
+            "SERIAL_DEV=/dev/ttyUSB-CRSF2", "SERIAL_DEV=/dev/ttyUSB-CRSF1"
+        )
+        errors, _ = cross_check_envs([("tx1", _parse(_TX1_ENV)), ("tx2", _parse(tx2_conflict))])
+        assert any("SERIAL_DEV=/dev/ttyUSB-CRSF1" in e for e in errors)
+
+    def test_identical_peer_is_warning(self) -> None:
+        """Одинаковый PEER (host:port) — почти всегда опечатка, но не блокируем."""
+        tx2_dup = _TX2_ENV.replace("PEER=192.168.1.20:14551", "PEER=192.168.1.20:14550")
+        errors, warnings = cross_check_envs([("tx1", _parse(_TX1_ENV)), ("tx2", _parse(tx2_dup))])
+        assert errors == []
+        assert any("identical PEER=192.168.1.20:14550" in w for w in warnings)
+
+    def test_different_baud_is_warning(self) -> None:
+        tx2_alt = _TX2_ENV.replace("BAUD=420000", "BAUD=921600")
+        errors, warnings = cross_check_envs([("tx1", _parse(_TX1_ENV)), ("tx2", _parse(tx2_alt))])
+        assert errors == []
+        assert any("BAUD differs" in w for w in warnings)
+
+    def test_different_peer_hosts_is_warning(self) -> None:
+        """tx1 и tx2 обычно целятся в одну машину-партнёра."""
+        tx2_other = _TX2_ENV.replace("PEER=192.168.1.20:14551", "PEER=192.168.1.30:14551")
+        errors, warnings = cross_check_envs([("tx1", _parse(_TX1_ENV)), ("tx2", _parse(tx2_other))])
+        assert errors == []
+        assert any("PEER hosts differ" in w for w in warnings)
+
+
+class TestCheckConfigMultiFile:
+    """Интеграция cross-check через CLI --check-config FILE1 FILE2."""
+
+    def test_two_valid_files_exit_zero(
+        self,
+        mocker: "MockerFixture",
+        tmp_path: Path,
+    ) -> None:
+        tx1 = tmp_path / "crsf-tx1.env"
+        tx2 = tmp_path / "crsf-tx2.env"
+        tx1.write_text(_TX1_ENV, encoding="utf-8")
+        tx2.write_text(_TX2_ENV, encoding="utf-8")
+        mocker.patch(
+            "sys.argv",
+            ["crsf_bridge.py", "--check-config", str(tx1), str(tx2)],
+        )
+        assert main() == 0
+
+    def test_listen_conflict_exits_one(
+        self,
+        mocker: "MockerFixture",
+        tmp_path: Path,
+    ) -> None:
+        tx1 = tmp_path / "crsf-tx1.env"
+        tx2 = tmp_path / "crsf-tx2.env"
+        tx1.write_text(_TX1_ENV, encoding="utf-8")
+        tx2.write_text(
+            _TX2_ENV.replace("LISTEN=0.0.0.0:14551", "LISTEN=0.0.0.0:14550"),
+            encoding="utf-8",
+        )
+        mocker.patch(
+            "sys.argv",
+            ["crsf_bridge.py", "--check-config", str(tx1), str(tx2)],
+        )
+        assert main() == 1
