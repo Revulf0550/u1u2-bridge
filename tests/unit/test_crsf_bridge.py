@@ -13,10 +13,18 @@
 """
 
 import socket
+from importlib.metadata import PackageNotFoundError
 from typing import TYPE_CHECKING
 
 import pytest
-from common.crsf_bridge import bytes_to_hex, open_serial, open_udp, parse_addr
+from common.crsf_bridge import (
+    bytes_to_hex,
+    get_version,
+    main,
+    open_serial,
+    open_udp,
+    parse_addr,
+)
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -159,3 +167,40 @@ class TestBytesToHex:
 
     def test_multiple_bytes(self) -> None:
         assert bytes_to_hex(b"\xab\xcd\xef") == "AB CD EF"
+
+
+# --- get_version & --version flag -------------------------------------------
+
+
+class TestGetVersion:
+    """get_version читает версию из importlib.metadata с фолбэком."""
+
+    def test_returns_nonempty_string(self) -> None:
+        """В нормальном окружении (uv sync) пакет установлен — версия должна быть."""
+        v = get_version()
+        assert isinstance(v, str)
+        assert v
+
+    def test_falls_back_when_package_not_found(self, mocker: "MockerFixture") -> None:
+        """Если пакет не установлен — отдаём local fallback, не падаем."""
+        mocker.patch(
+            "common.crsf_bridge.version",
+            side_effect=PackageNotFoundError("u1u2-bridge"),
+        )
+        assert get_version() == "0.0.0+local"
+
+
+class TestVersionFlag:
+    """--version печатает 'u1u2-bridge <ver>' в stdout и выходит с кодом 0."""
+
+    def test_version_flag_prints_and_exits(
+        self,
+        mocker: "MockerFixture",
+        capsys: "pytest.CaptureFixture[str]",
+    ) -> None:
+        mocker.patch("sys.argv", ["crsf_bridge.py", "--version"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        assert "u1u2-bridge" in captured.out

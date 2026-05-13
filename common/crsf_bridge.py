@@ -29,6 +29,7 @@ import signal
 import socket
 import sys
 import time
+from importlib.metadata import PackageNotFoundError, version
 from types import FrameType
 from typing import Any
 
@@ -51,6 +52,14 @@ def parse_addr(s: str) -> tuple[str, int]:
 def bytes_to_hex(data: bytes) -> str:
     """Форматирует байты как 'AB CD EF' для дебаг-логов CRSF-кадров."""
     return " ".join(f"{b:02X}" for b in data)
+
+
+def get_version() -> str:
+    """Возвращает версию пакета. Fallback если запущен из git-клонa без install."""
+    try:
+        return version("u1u2-bridge")
+    except PackageNotFoundError:
+        return "0.0.0+local"
 
 
 def open_serial(dev: str, baud: int) -> serial.Serial:
@@ -86,6 +95,11 @@ def open_udp(listen: tuple[str, int]) -> socket.socket:
 def main() -> int:
     """Основная функция: парс аргументов, цикл UART↔UDP, авто-реконнект, статистика."""
     p = argparse.ArgumentParser()
+    p.add_argument(
+        "--version",
+        action="version",
+        version=f"u1u2-bridge {get_version()}",
+    )
     p.add_argument("--serial", required=True, help="например /dev/ttyUSB-CRSF1")
     p.add_argument("--baud", type=int, default=CRSF_DEFAULT_BAUD)
     p.add_argument(
