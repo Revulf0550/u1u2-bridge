@@ -37,3 +37,4 @@ uv.lock
 
 # Local logs
 *.log
+.claude/
