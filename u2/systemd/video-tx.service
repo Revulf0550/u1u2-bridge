@@ -1,0 +1,16 @@
+# /etc/systemd/system/video-tx.service (на У2)
+
+[Unit]
+Description=Video TX (VRX -> H.264 RTP -> CPE710)
+After=network-online.target dev-video0.device
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/u1u2-bridge/u2/video_tx.sh
+Restart=always
+RestartSec=3
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target
