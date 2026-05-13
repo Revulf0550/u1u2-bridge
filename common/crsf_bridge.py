@@ -48,6 +48,11 @@ def parse_addr(s: str) -> tuple[str, int]:
     return host, int(port)
 
 
+def bytes_to_hex(data: bytes) -> str:
+    """Форматирует байты как 'AB CD EF' для дебаг-логов CRSF-кадров."""
+    return " ".join(f"{b:02X}" for b in data)
+
+
 def open_serial(dev: str, baud: int) -> serial.Serial:
     """Открыть serial-порт с настройками под CRSF (8N1, неблокирующее чтение)."""
     ser = serial.Serial(

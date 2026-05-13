@@ -16,7 +16,7 @@ import socket
 from typing import TYPE_CHECKING
 
 import pytest
-from common.crsf_bridge import open_serial, open_udp, parse_addr
+from common.crsf_bridge import bytes_to_hex, open_serial, open_udp, parse_addr
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -143,3 +143,19 @@ class TestOpenUdp:
 
         mock_sock_instance.bind.assert_called_once_with(listen_addr)
         mock_sock_instance.setblocking.assert_called_once_with(False)
+
+
+# --- bytes_to_hex ------------------------------------------------------------
+
+
+class TestBytesToHex:
+    """bytes_to_hex форматирует байты как 'AB CD EF' для дебаг-логов."""
+
+    def test_empty(self) -> None:
+        assert bytes_to_hex(b"") == ""
+
+    def test_single_byte(self) -> None:
+        assert bytes_to_hex(b"\xab") == "AB"
+
+    def test_multiple_bytes(self) -> None:
+        assert bytes_to_hex(b"\xab\xcd\xef") == "AB CD EF"
