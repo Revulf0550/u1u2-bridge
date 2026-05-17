@@ -1,19 +1,27 @@
 #!/bin/bash
-# install.sh — инсталлятор u1u2-bridge на Orange Pi 5.
+# install.sh — инсталлятор u1u2-bridge на Orange Pi 5 / 5 Max.
 #
 # Использование:
 #   sudo ./install.sh u1      # на мастер-пульте
 #   sudo ./install.sh u2      # на выносной базе
 #
 # Предполагается Ubuntu 24.04 от joshua-riek/ubuntu-rockchip (или Armbian
-# с rockchip-mpp). Сетевая адресация (CPE710 LAN):
+# с rockchip-mpp). Сетевая адресация (CPE710 LAN, Phase 1):
 #   У2 Orange Pi:    192.168.1.10
 #   У1 Orange Pi:    192.168.1.20
 #   CPE710 master:   192.168.1.2
 #   CPE710 slave:    192.168.1.3
 #
-# Сетевой интерфейс определяется автоматически (см. §7.2 HANDOFF).
-# Можно переопределить вручную: IFACE=eth0 sudo ./install.sh u2
+# Сетевой интерфейс определяется автоматически (см. §7.2 HANDOFF). Имя
+# зависит от модели платы: `end0` на Pi 5, `enP3p49s0` на Pi 5 Max.
+# Переопределить вручную: IFACE=eth0 sudo ./install.sh u2
+#
+# Опциональные env (для bench / VPN-фазы):
+#   WAVESHARE_SERIAL_1=5A98051690  # серийник адаптера для CRSF1 udev SYMLINK
+#   WAVESHARE_SERIAL_2=...         # серийник для CRSF2
+#   PEER_IP_OVERRIDE=10.8.0.4      # перенаправить PEER в env-файлах на VPN
+#                                  # (вместо локального 192.168.1.x)
+#   SKIP_NETPLAN=1                 # не трогать netplan (сеть уже настроена)
 
 set -euo pipefail
 
@@ -51,11 +59,12 @@ fi
 echo "==> RKMPP encoder available"
 
 # --- 3. определение сетевого интерфейса --------------------------------------
-# Если IFACE задана явно — используем её, иначе берём первый не-lo интерфейс.
-IFACE="${IFACE:-$(ip -br link | awk '$1 != "lo" {print $1; exit}')}"
+# Если IFACE задан явно — используем его. Иначе берём первый не-lo интерфейс
+# в состоянии UP (это отсекает wlan/usb-eth, которые поднялись но не подключены).
+IFACE="${IFACE:-$(ip -br link | awk '$1 != "lo" && $2 == "UP" {print $1; exit}')}"
 if [[ -z "$IFACE" ]]; then
-  echo "!! Не удалось определить сетевой интерфейс. Задайте вручную:" >&2
-  echo "!!   IFACE=eth0 sudo ./install.sh $ROLE" >&2
+  echo "!! Не удалось определить активный (UP) сетевой интерфейс. Задайте вручную:" >&2
+  echo "!!   IFACE=enP3p49s0 sudo ./install.sh $ROLE" >&2
   exit 1
 fi
 echo "==> network interface: $IFACE"
@@ -69,8 +78,16 @@ else
   PEER_IP="192.168.1.10"
 fi
 
-NETPLAN_FILE=/etc/netplan/99-u1u2-bridge.yaml
-cat > "$NETPLAN_FILE" <<EOF
+# Для bench-фазы через WireGuard можно перенаправить PEER на VPN-адрес —
+# тогда CRSF-трафик пойдёт через туннель (10.8.0.x), а не локально (192.168.1.x).
+if [[ -n "${PEER_IP_OVERRIDE:-}" ]]; then
+  echo "==> PEER_IP_OVERRIDE задан: $PEER_IP -> $PEER_IP_OVERRIDE"
+  PEER_IP="$PEER_IP_OVERRIDE"
+fi
+
+if [[ -z "${SKIP_NETPLAN:-}" ]]; then
+  NETPLAN_FILE=/etc/netplan/99-u1u2-bridge.yaml
+  cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
   ethernets:
@@ -81,9 +98,12 @@ network:
       nameservers:
         addresses: [1.1.1.1]
 EOF
-chmod 0600 "$NETPLAN_FILE"
-netplan apply || true
-echo "==> static IP set: $IP_ADDR on $IFACE (peer will be $PEER_IP)"
+  chmod 0600 "$NETPLAN_FILE"
+  netplan apply || true
+  echo "==> static IP set: $IP_ADDR on $IFACE (peer will be $PEER_IP)"
+else
+  echo "==> SKIP_NETPLAN=1 — netplan не трогаем (peer будет $PEER_IP)"
+fi
 
 # --- 5. код проекта -----------------------------------------------------------
 install -d /etc/u1u2-bridge
@@ -96,52 +116,74 @@ install -m 0644 "$REPO/common/systemd/crsf-bridge@.service" /etc/systemd/system/
 install -m 0644 "$REPO/$ROLE/systemd/"*.service /etc/systemd/system/
 
 # --- 7. env-файлы для CRSF-моста ----------------------------------------------
+# SERIAL_DEV — символические имена через udev (см. §8). Для Waveshare на CH343G
+# имена /dev/ttyACM-CRSFx (драйвер cdc_acm), не /dev/ttyUSBx.
 if [[ "$ROLE" == "u2" ]]; then
   cat > /etc/u1u2-bridge/crsf-tx1.env <<EOF
-SERIAL_DEV=/dev/ttyUSB-CRSF1
+SERIAL_DEV=/dev/ttyACM-CRSF1
 BAUD=420000
 LISTEN=0.0.0.0:14550
-PEER=192.168.1.20:14550
+PEER=$PEER_IP:14550
 EOF
   cat > /etc/u1u2-bridge/crsf-tx2.env <<EOF
-SERIAL_DEV=/dev/ttyUSB-CRSF2
+SERIAL_DEV=/dev/ttyACM-CRSF2
 BAUD=420000
 LISTEN=0.0.0.0:14551
-PEER=192.168.1.20:14551
+PEER=$PEER_IP:14551
 EOF
 else
   cat > /etc/u1u2-bridge/crsf-tx1.env <<EOF
-SERIAL_DEV=/dev/ttyUSB-CRSF1
+SERIAL_DEV=/dev/ttyACM-CRSF1
 BAUD=420000
 LISTEN=0.0.0.0:14550
-PEER=192.168.1.10:14550
+PEER=$PEER_IP:14550
 EOF
   cat > /etc/u1u2-bridge/crsf-tx2.env <<EOF
-SERIAL_DEV=/dev/ttyUSB-CRSF2
+SERIAL_DEV=/dev/ttyACM-CRSF2
 BAUD=420000
 LISTEN=0.0.0.0:14551
-PEER=192.168.1.10:14551
+PEER=$PEER_IP:14551
 EOF
 fi
 
-# --- 8. udev-правила: стабильные имена UART -----------------------------------
-# ВАЖНО: ID для CP2102N. После того как Waveshare на CH343G придут,
-# нужно заменить на 1a86:55d3 (см. §7.3 HANDOFF).
-cat > /etc/udev/rules.d/90-u1u2-uart.rules <<'EOF'
-# CP2102N USB↔UART → стабильные имена /dev/ttyUSB-CRSF1, ttyUSB-CRSF2
-# Замените серийники на свои:
-#   udevadm info -a /dev/ttyUSB0 | grep -m1 'ATTRS{serial}'
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", \
-  ATTRS{serial}=="REPLACE_WITH_SERIAL_1", SYMLINK+="ttyUSB-CRSF1"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", \
-  ATTRS{serial}=="REPLACE_WITH_SERIAL_2", SYMLINK+="ttyUSB-CRSF2"
+# --- 8. udev-правила: стабильные имена RS485-адаптеров ------------------------
+# Waveshare USB-TO-RS485 (B) на чипе CH343G — vendor 1a86, product 55d3,
+# драйвер cdc_acm. Устройство приходит как /dev/ttyACMx (не /dev/ttyUSBx).
+#
+# Серийники узнавать так:
+#   udevadm info -a /dev/ttyACM0 | grep -m1 'ATTRS{serial}'
+# и передавать в install.sh через env:
+#   WAVESHARE_SERIAL_1=5A98051690 WAVESHARE_SERIAL_2=... sudo ./install.sh u2
+WAVESHARE_SERIAL_1="${WAVESHARE_SERIAL_1:-REPLACE_WITH_SERIAL_1}"
+WAVESHARE_SERIAL_2="${WAVESHARE_SERIAL_2:-REPLACE_WITH_SERIAL_2}"
+
+cat > /etc/udev/rules.d/90-u1u2-uart.rules <<EOF
+# Waveshare USB-TO-RS485 (B) на CH343G (1a86:55d3) — драйвер cdc_acm,
+# устройство /dev/ttyACMx, не /dev/ttyUSBx.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", \\
+  ATTRS{serial}=="$WAVESHARE_SERIAL_1", SYMLINK+="ttyACM-CRSF1"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", \\
+  ATTRS{serial}=="$WAVESHARE_SERIAL_2", SYMLINK+="ttyACM-CRSF2"
 EOF
 udevadm control --reload || true
+udevadm trigger --subsystem-match=tty --action=change || true
 
-echo
-echo "!! ВАЖНО: отредактируйте /etc/udev/rules.d/90-u1u2-uart.rules,"
-echo "   подставьте серийники ваших USB-UART адаптеров (см. udevadm info)"
-echo "   После: sudo udevadm trigger"
+if [[ "$WAVESHARE_SERIAL_1" == "REPLACE_WITH_SERIAL_1" \
+   || "$WAVESHARE_SERIAL_2" == "REPLACE_WITH_SERIAL_2" ]]; then
+  echo
+  echo "!! ВАЖНО: серийники Waveshare не подставлены (placeholders в udev-rules)."
+  echo "   Узнайте через:  udevadm info -a /dev/ttyACM0 | grep -m1 ATTRS{serial}"
+  echo "   Перезапустите:  WAVESHARE_SERIAL_1=<sn1> WAVESHARE_SERIAL_2=<sn2> \\"
+  echo "                   sudo ./install.sh $ROLE"
+fi
+
+# Проверка, что пользователь, под которым работает systemd-юнит, в dialout —
+# иначе после реконнекта адаптера сервис не сможет открыть /dev/ttyACMx.
+if ! getent group dialout | grep -qw "${SUDO_USER:-ubuntu}"; then
+  echo
+  echo "!! ${SUDO_USER:-ubuntu} не в группе dialout. Выполните:"
+  echo "   sudo usermod -aG dialout ${SUDO_USER:-ubuntu}  &&  logout/login"
+fi
 
 # --- 9. отключаем display-manager на У1 (kmssink требует tty) -----------------
 if [[ "$ROLE" == "u1" ]]; then

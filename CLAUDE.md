@@ -148,6 +148,56 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-05-18 · Pi 5 Max + joshua-riek: пустой SPI + только NVMe → splash виснет
+
+Первая попытка загрузить Orange Pi 5 Max с NVMe (Ubuntu 24.04 от joshua-riek) висла на splash "Orange Pi" — Linux не догружался. Причина: SPL на NVMe не способен догрузить Linux без U-Boot в SPI — PCIe инициализируется именно там, а из коробки на Pi 5 Max SPI пустой. Решение: сначала загрузиться с SD с той же прошивкой, выполнить `sudo u-boot-install-mtd`, вынуть SD и грузиться с NVMe.
+
+**Правило:** на Pi 5 Max (RK3588) при NVMe-only установке — обязательно сначала прошить SPI U-Boot'ом через SD + `u-boot-install-mtd`. Голый NVMe без U-Boot в SPI грузиться не может (PCIe инициализируется из SPI).
+
+**Проверка:** после `u-boot-install-mtd` — `sudo dd if=/dev/mtd0 bs=1M count=16 status=none | md5sum` совпадает с MD5 исходного образа U-Boot (см. также соседний урок про Rockchip SPI offset).
+
+---
+
+### 2026-05-18 · Rockchip SPI: первые 32K служебные, реальный idbloader на 0x8000
+
+При проверке прошивки SPI команда `head -c 16 /dev/mtd0` возвращала нули — выглядело как пустая/битая прошивка. На самом деле первые 32K на Rockchip SPI — служебная область, реальный idbloader начинается с offset `0x8000` с заголовком `RKNS`.
+
+**Правило:** не делать вывод о целостности Rockchip SPI flash по первым байтам — нули в начале это нормально. Проверять MD5 целиком (`md5sum file.img` vs `sudo dd if=/dev/mtd0 bs=1M count=16 | md5sum`, `count` по реальному размеру SPI flash).
+
+**Проверка:** обе хэш-суммы должны совпадать. Не совпадают — перепрошить через `u-boot-install-mtd`. Заодно валидировать header: `sudo dd if=/dev/mtd0 bs=1 skip=32768 count=4 status=none | xxd` должно показать `RKNS`.
+
+---
+
+### 2026-05-18 · wg-easy дефолты клиентского пира небезопасны для нашего сценария
+
+При генерации клиентского конфига в веб-UI wg-easy по умолчанию вписывается `AllowedIPs = 0.0.0.0/0` и `PersistentKeepalive = 0`. Для нашего сценария (Orange Pi как обычный пир в /24 подсети моста, не дефолт-роут всего трафика) `0.0.0.0/0` отправляет в туннель **весь** трафик — ломает доступ к локальной сети и CPE710. `PersistentKeepalive = 0` отключает keepalive — NAT-таблица на пути за 60–180 секунд протухает, туннель тихо перестаёт работать без явной ошибки.
+
+**Правило:** после скачивания конфига из wg-easy всегда править вручную: `AllowedIPs = 10.8.0.0/24` (или нужная подсеть VPN-моста, без `0.0.0.0/0`) и `PersistentKeepalive = 15`. Дефолтам wg-easy для этого проекта не доверять.
+
+**Проверка:** `sudo wg show wg0 allowed-ips` — только VPN-подсеть, не `0.0.0.0/0`. После 60+ секунд молчания `ping` через туннель остаётся рабочим — keepalive держит NAT.
+
+---
+
+### 2026-05-18 · Orange Pi 5 Max имеет один 2.5GbE, не два
+
+При планировании сетевой схемы предполагал у Pi 5 Max два Ethernet-порта (путал с Pi 5 Plus). На самом деле у Pi 5 Max — **один** 2.5GbE с именем `enP3p49s0` (на joshua-riek 24.04). План разделять трафик CPE710 / management по разным портам — невозможен на этой плате.
+
+**Правило:** для Pi 5 Max закладывать один сетевой интерфейс. Перед редактированием netplan / `install.sh` IFACE-логики — всегда сверяться с `ip -br link`, а не с памятью про "Pi 5 имеет столько-то портов". Имя интерфейса на joshua-riek меняется от модели платы (`end0` на Pi 5, `enP3p49s0` на Pi 5 Max).
+
+**Проверка:** `ip -br link | awk '$1 != "lo"'` на u2-pi показывает один интерфейс `enP3p49s0`. `install.sh` определяет IFACE автоматически (`ip -br link | awk '$2 == "UP"'`), переопределение — через `IFACE=...` env.
+
+---
+
+### 2026-05-18 · Waveshare USB-TO-RS485 (B) на CH343G → /dev/ttyACMx, не /dev/ttyUSBx
+
+При подключении Waveshare USB-TO-RS485 (B) к Orange Pi 5 Max (Ubuntu 24.04) адаптер был распознан как USB CDC ACM device (драйвер `cdc_acm`), пришёл как `/dev/ttyACM0`, а не `/dev/ttyUSB0`. Vendor:Product = `1a86:55d3` (WCH CH343G). Прежние udev-правила и env-файлы `install.sh` ожидали `ttyUSB*` под CP2102N `10c4:ea60` — на CH343G не сработают вообще.
+
+**Правило:** для CH343G использовать драйвер `cdc_acm` и имена `/dev/ttyACMx`; udev `SYMLINK+="ttyACM-CRSFx"`, env `SERIAL_DEV=/dev/ttyACM-CRSFx`. `ttyUSB*` валидно только для CP210x/CH340G — это другие чипы. При смене модели адаптера всегда сверяться с `dmesg` / `ls /dev/tty*`, не копировать имена из старых правил.
+
+**Проверка:** после подключения адаптера — `ls /dev/ttyACM*` и `udevadm info -q property /dev/ttyACM0 | grep -E 'ID_USB_DRIVER|ID_VENDOR_ID|ID_MODEL_ID'` (ожидаем `cdc_acm`, `1a86`, `55d3`). Серийник конкретного адаптера на u2-pi — `5A98051690`. Пользователь должен быть в группе `dialout`: `groups ubuntu | grep -w dialout`.
+
+---
+
 ### 2026-05-13 · `PackageNotFoundError: u1u2-bridge` при `importlib.metadata.version()`
 
 При планировании CLI-флага `--version` собирался использовать `importlib.metadata.version("u1u2-bridge")`, но проверка показала `PackageNotFoundError`: в `pyproject.toml` не было `[build-system]`, поэтому `uv sync` ставил только зависимости, а сам проект не устанавливался как distribution. Исправлено добавлением `[build-system] requires = ["hatchling"]` и `[tool.hatch.build.targets.wheel] packages = ["common"]`, после чего `uv sync` поставил `u1u2-bridge==0.1.0` editable.
