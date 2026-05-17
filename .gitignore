@@ -1,40 +1,23 @@
-# Python
+# Large firmware images (kept locally only)
+firmware/
+
+# Python ephemeral
 __pycache__/
 *.py[cod]
-*$py.class
-*.egg-info/
 .venv/
 venv/
-build/
-dist/
-
-# Tools
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
-.coverage
-htmlcov/
-coverage.xml
+*.egg-info/
 
-# Env / secrets — НИКОГДА не коммитим
-.env
-.env.local
-.env.*.local
-/etc/u1u2-bridge/*.env
-*.key
-*.pem
-wireguard/*_private*
+# Secrets — никогда не коммитим WG-конфиги
+*-pi.conf
+wg0.conf
+*.privatekey
 
-# uv
-uv.lock
-
-# IDE
+# IDE / OS
 .vscode/
 .idea/
-*.swp
-*.swo
 .DS_Store
-
-# Local logs
-*.log
-.claude/
+Thumbs.db
