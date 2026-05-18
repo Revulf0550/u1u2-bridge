@@ -215,10 +215,6 @@ class Pinger(threading.Thread):
             frame = make_frame(seq)
             try:
                 self.ser.write(frame)
-                # tcdrain: ждём, пока байты реально уйдут с host'а. Без этого
-                # USB-CDC latency (1-2 мс) съедает margin на high-baud и
-                # сдвигает echo_deadline относительно фактической wire-time.
-                self.ser.flush()
             except (serial.SerialTimeoutException, serial.SerialException):
                 self.sent += 1
                 next_tx += self.period
