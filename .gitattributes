@@ -1,0 +1,7 @@
+# Явные EOL-правила. Репозиторий редактируется на Windows и исполняется
+# на Linux (Orange Pi), полагаться на core.autocrlf пользователя нельзя —
+# CRLF в shebang `#!/bin/bash` ломает запуск bash-скриптов на Linux.
+
+*.sh   text eol=lf
+*.py   text eol=lf
+*.ps1  text eol=crlf

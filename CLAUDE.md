@@ -148,6 +148,26 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-05-18 · CRLF в shebang ломает запуск bash-скрипта на Linux после `git pull`
+
+После `git pull` на u2-pi `./install.sh` не стартовал: `bash: ./install.sh: /bin/bash^M: bad interpreter: No such file or directory`. Причина: репо редактируется на Windows без `.gitattributes`, git хранил/чекаутил `install.sh` с CRLF, на Linux ядро при exec'е shebang-строки видит `#!/bin/bash\r` и ищет интерпретатор `/bin/bash^M` (которого нет). Разово лечилось `sed -i 's/\r$//' install.sh && chmod +x install.sh`, окончательно — `.gitattributes` с явными правилами EOL.
+
+**Правило:** в любом репо, который редактируется на Windows и исполняется на Linux — обязателен `.gitattributes` с явным `text eol=lf` для shell/python и `text eol=crlf` для PowerShell. На `core.autocrlf` пользователя не полагаться (у каждого свой). Если файл закоммичен до добавления `.gitattributes` с неправильным EOL — `git add --renormalize . && git commit`.
+
+**Проверка:** на Linux после `git pull` — `file install.sh` показывает `Bourne-Again shell script, ASCII text executable` БЕЗ суффикса `with CRLF line terminators`. Регрессия: `head -1 install.sh | xxd | grep -q '0d 0a'` должно ничего не вернуть (нет CRLF в первой строке).
+
+---
+
+### 2026-05-18 · wg-easy дефолт `AllowedIPs=0.0.0.0/0` на Windows-клиенте ломает локалку
+
+Импорт сгенерированного wg-easy конфига в WireGuard for Windows (NSU-pc, peer `10.8.0.5`): дефолтный `AllowedIPs = 0.0.0.0/0` создал второй default route через туннель, локальная сеть и обычный интернет отвалились (весь трафик ушёл на VPS NL). Симметрично уроку от 2026-05-18 про Pi-клиент: дефолт wg-easy одинаково небезопасен с любой стороны, не только на Pi.
+
+**Правило:** ЛЮБОЙ импортированный из wg-easy конфиг (Pi, Windows, Android — без разницы) править вручную перед подключением: `AllowedIPs = 10.8.0.0/24` (только VPN-подсеть), `PersistentKeepalive = 15`. Никогда не подключаться "из коробки".
+
+**Проверка:** на Windows после подключения — `route print -4 | findstr "  0.0.0.0  "` должен показывать default route на физический gateway, не на WG-интерфейс. На Linux — `ip route show default` не должен указывать на `wg0`. Универсально: `wg show wg0 allowed-ips` — только `10.8.0.0/24`.
+
+---
+
 ### 2026-05-18 · Pi 5 Max + joshua-riek: пустой SPI + только NVMe → splash виснет
 
 Первая попытка загрузить Orange Pi 5 Max с NVMe (Ubuntu 24.04 от joshua-riek) висла на splash "Orange Pi" — Linux не догружался. Причина: SPL на NVMe не способен догрузить Linux без U-Boot в SPI — PCIe инициализируется именно там, а из коробки на Pi 5 Max SPI пустой. Решение: сначала загрузиться с SD с той же прошивкой, выполнить `sudo u-boot-install-mtd`, вынуть SD и грузиться с NVMe.

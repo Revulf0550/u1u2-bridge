@@ -172,13 +172,19 @@ EOF
 udevadm control --reload || true
 udevadm trigger --subsystem-match=tty --action=change || true
 
-if [[ "$WAVESHARE_SERIAL_1" == "REPLACE_WITH_SERIAL_1" \
-   || "$WAVESHARE_SERIAL_2" == "REPLACE_WITH_SERIAL_2" ]]; then
+if [[ "$WAVESHARE_SERIAL_1" == "REPLACE_WITH_SERIAL_1" ]]; then
   echo
-  echo "!! ВАЖНО: серийники Waveshare не подставлены (placeholders в udev-rules)."
-  echo "   Узнайте через:  udevadm info -a /dev/ttyACM0 | grep -m1 ATTRS{serial}"
-  echo "   Перезапустите:  WAVESHARE_SERIAL_1=<sn1> WAVESHARE_SERIAL_2=<sn2> \\"
-  echo "                   sudo ./install.sh $ROLE"
+  echo "Info: WAVESHARE_SERIAL_1 не задан — /dev/ttyACM-CRSF1 не появится"
+  echo "      (норма для бенча с одним адаптером). Когда подключите CRSF1:"
+  echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
+  echo "        WAVESHARE_SERIAL_1=<sn> sudo ./install.sh $ROLE"
+fi
+if [[ "$WAVESHARE_SERIAL_2" == "REPLACE_WITH_SERIAL_2" ]]; then
+  echo
+  echo "Info: WAVESHARE_SERIAL_2 не задан — /dev/ttyACM-CRSF2 не появится"
+  echo "      (норма для бенча с одним адаптером). Когда подключите CRSF2:"
+  echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
+  echo "        WAVESHARE_SERIAL_2=<sn> sudo ./install.sh $ROLE"
 fi
 
 # Проверка, что пользователь, под которым работает systemd-юнит, в dialout —
