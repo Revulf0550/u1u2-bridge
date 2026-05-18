@@ -22,6 +22,10 @@
 #   PEER_IP_OVERRIDE=10.8.0.4      # перенаправить PEER в env-файлах на VPN
 #                                  # (вместо локального 192.168.1.x)
 #   SKIP_NETPLAN=1                 # не трогать netplan (сеть уже настроена)
+#   SKIP_VIDEO=1                   # не enable/start video-tx (U2) / video-rx (U1).
+#                                  # Нужно на бенче без MS2130 grabber / HDMI-очков:
+#                                  # иначе gst-launch падает и юнит уходит в
+#                                  # бесконечный Restart-loop, забивая journalctl.
 
 set -euo pipefail
 
@@ -203,10 +207,14 @@ sysctl --system >/dev/null
 systemctl daemon-reload
 systemctl enable --now crsf-bridge@tx1.service
 systemctl enable --now crsf-bridge@tx2.service
-if [[ "$ROLE" == "u2" ]]; then
-  systemctl enable --now video-tx.service
+if [[ -z "${SKIP_VIDEO:-}" ]]; then
+  if [[ "$ROLE" == "u2" ]]; then
+    systemctl enable --now video-tx.service
+  else
+    systemctl enable --now video-rx.service
+  fi
 else
-  systemctl enable --now video-rx.service
+  echo "==> SKIP_VIDEO=1 — video-tx/video-rx не активируется"
 fi
 
 echo
@@ -214,9 +222,11 @@ echo "==========================================================================
 echo " Готово. Проверка:"
 echo "   ping -i 0.2 $PEER_IP                    # связь по CPE710"
 echo "   systemctl status crsf-bridge@tx1 crsf-bridge@tx2"
-if [[ "$ROLE" == "u2" ]]; then
-  echo "   journalctl -u video-tx -f --since '1 min ago'"
-else
-  echo "   journalctl -u video-rx -f --since '1 min ago'"
+if [[ -z "${SKIP_VIDEO:-}" ]]; then
+  if [[ "$ROLE" == "u2" ]]; then
+    echo "   journalctl -u video-tx -f --since '1 min ago'"
+  else
+    echo "   journalctl -u video-rx -f --since '1 min ago'"
+  fi
 fi
 echo "=========================================================================="
