@@ -60,12 +60,17 @@ log = logging.getLogger("bench-loopback")
 def compute_echo_deadline(baud: int, frame_size: int = FRAME_SIZE) -> float:
     """Бюджет на echo round-trip, в секундах.
 
-    Два frame_tx_time (туда + обратно) + 2 мс запаса. Floor 5 мс для high-baud,
-    где wire-time (< 1 мс) перекрывается USB-CDC latency и нет смысла мерить
-    меньше резолюции `serial.read(timeout=0.01)`.
+    Два frame_tx_time (туда + обратно) плюс 20 мс на накопленный overhead:
+    USB-CDC latency с обеих сторон, переключение DE на Waveshare,
+    `serial.read(timeout=0.01)` slack, Python-парсинг кадра у echoer'а.
+    На бенче 1200/2Hz измеренный RT ≈ 443 мс при чистом wire-time 433 мс
+    → реальный overhead ~10 мс. Берём 20 мс с запасом ×2.
+
+    На high-baud (420k, frame_tx ≈ 620 µs) сам margin доминирует, итог
+    ≈ 21 мс — этого с запасом хватает на любую конфигурацию.
     """
     frame_tx_time = frame_size * 10 / baud
-    return max(2 * frame_tx_time + 0.002, 0.005)
+    return 2 * frame_tx_time + 0.020
 
 
 def compute_period_cap(period: float, echo_deadline: float) -> float:
