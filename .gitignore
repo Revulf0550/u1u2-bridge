@@ -30,3 +30,4 @@ Thumbs.db
 firmware/*.img
 firmware/*.img.xz
 firmware/*.img.gz
+.claude/
