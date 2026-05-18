@@ -224,6 +224,41 @@ def open_udp(listen: tuple[str, int]) -> socket.socket:
     return sock
 
 
+def _udp_to_uart(
+    data: bytes,
+    ser: serial.Serial | None,
+    log: logging.Logger,
+) -> tuple[int, int]:
+    """Записать UDP-пакет в UART. Возвращает (written, dropped) в байтах.
+
+    Три случая:
+      - data пусто → (0, 0), без побочных эффектов.
+      - ser is None → данные дропаются, лог на DEBUG, dropped = len(data).
+        Это типичный сценарий: UART отвалился, авто-реконнект ещё не успел.
+      - write упал (SerialException и пр.) → лог на WARNING, (0, 0).
+        Это не дроп, а ошибка ввода-вывода — отдельный класс события.
+
+    Счётчик `dropped` агрегируется в STAT_PERIOD-строке статистики, чтобы
+    тихая потеря UDP во время реконнекта была видна в обычных INFO-логах
+    (а не только при --log-level=DEBUG).
+    """
+    if not data:
+        return 0, 0
+    if ser is None:
+        log.debug("udp->uart: dropped %d B, serial closed", len(data))
+        return 0, len(data)
+    try:
+        ser.write(data)
+    except (
+        serial.SerialTimeoutException,
+        serial.SerialException,
+        OSError,
+    ) as e:
+        log.warning("uart write failed: %s", e)
+        return 0, 0
+    return len(data), 0
+
+
 def main() -> int:
     """Основная функция: парс аргументов, цикл UART↔UDP, авто-реконнект, статистика."""
     p = argparse.ArgumentParser()
@@ -357,7 +392,7 @@ def main() -> int:
     signal.signal(signal.SIGTERM, on_sig)
     signal.signal(signal.SIGINT, on_sig)
 
-    s2u_bytes = u2s_bytes = 0
+    s2u_bytes = u2s_bytes = u2s_drop_bytes = 0
     last_stat = time.monotonic()
     stat_period = 10.0
 
@@ -398,25 +433,19 @@ def main() -> int:
                 data, _ = sock.recvfrom(2048)
             except BlockingIOError:
                 data = b""
-            if data and ser is not None:
-                try:
-                    ser.write(data)
-                    u2s_bytes += len(data)
-                except (
-                    serial.SerialTimeoutException,
-                    serial.SerialException,
-                    OSError,
-                ) as e:
-                    log.warning("uart write failed: %s", e)
+            written, dropped = _udp_to_uart(data, ser, log)
+            u2s_bytes += written
+            u2s_drop_bytes += dropped
 
         now = time.monotonic()
         if now - last_stat >= stat_period:
             log.info(
-                "uart->udp=%d B/s  udp->uart=%d B/s",
+                "uart->udp=%d B/s  udp->uart=%d B/s  udp_drop=%d B/s",
                 int(s2u_bytes / stat_period),
                 int(u2s_bytes / stat_period),
+                int(u2s_drop_bytes / stat_period),
             )
-            s2u_bytes = u2s_bytes = 0
+            s2u_bytes = u2s_bytes = u2s_drop_bytes = 0
             last_stat = now
 
     log.info("shutting down")

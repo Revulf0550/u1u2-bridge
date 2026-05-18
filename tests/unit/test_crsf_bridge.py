@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 import pytest
 import serial
 from common.crsf_bridge import (
+    _udp_to_uart,
     bytes_to_hex,
     cross_check_envs,
     get_version,
@@ -156,6 +157,61 @@ class TestOpenUdp:
 
         mock_sock_instance.bind.assert_called_once_with(listen_addr)
         mock_sock_instance.setblocking.assert_called_once_with(False)
+
+
+# --- _udp_to_uart ------------------------------------------------------------
+
+
+class TestUdpToUart:
+    """_udp_to_uart должна различать запись/дроп/ошибку и логировать корректно.
+
+    Сценарий "ser is None" — это окно реконнекта UART: пакеты UDP продолжают
+    приходить, а serial ещё закрыт. Без явного учёта дроп был невидимым,
+    из-за чего smoke-тест "UDP дошёл/нет" мог дать ложно-негативный результат
+    (см. урок 2026-05-18 в CLAUDE.md).
+    """
+
+    def test_writes_to_serial(self, mocker: "MockerFixture") -> None:
+        """Нормальный путь: ser.write вызван с теми же байтами, written=len, dropped=0."""
+        log = mocker.Mock()
+        ser = mocker.Mock()
+        written, dropped = _udp_to_uart(b"abc", ser, log)
+        ser.write.assert_called_once_with(b"abc")
+        assert (written, dropped) == (3, 0)
+        log.debug.assert_not_called()
+        log.warning.assert_not_called()
+
+    def test_drops_when_serial_none_and_logs_debug(self, mocker: "MockerFixture") -> None:
+        """ser is None → дроп с DEBUG, не WARNING. Это и есть TODO #3."""
+        log = mocker.Mock()
+        written, dropped = _udp_to_uart(b"abc", None, log)
+        assert (written, dropped) == (0, 3)
+        log.debug.assert_called_once()
+        log.warning.assert_not_called()
+
+    def test_empty_data_is_noop(self, mocker: "MockerFixture") -> None:
+        """Пустые данные — no-op, без побочных эффектов и логов."""
+        log = mocker.Mock()
+        ser = mocker.Mock()
+        written, dropped = _udp_to_uart(b"", ser, log)
+        assert (written, dropped) == (0, 0)
+        ser.write.assert_not_called()
+        log.debug.assert_not_called()
+        log.warning.assert_not_called()
+
+    def test_write_error_logs_warning_not_counted_as_drop(self, mocker: "MockerFixture") -> None:
+        """SerialException при write → WARNING, (0, 0) — это не дроп, а I/O ошибка.
+
+        Разделение важно: drop = "не пытались писать", error = "пытались, не вышло".
+        Смешивать их в одном счётчике — терять диагностический сигнал.
+        """
+        log = mocker.Mock()
+        ser = mocker.Mock()
+        ser.write.side_effect = serial.SerialException("nope")
+        written, dropped = _udp_to_uart(b"abc", ser, log)
+        assert (written, dropped) == (0, 0)
+        log.warning.assert_called_once()
+        log.debug.assert_not_called()
 
 
 # --- bytes_to_hex ------------------------------------------------------------
