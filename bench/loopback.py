@@ -135,6 +135,7 @@ class Pinger(threading.Thread):
     def __init__(
         self,
         ser: serial.Serial,
+        baud: int,
         rate_hz: float,
         stop_event: threading.Event,
     ) -> None:
@@ -142,6 +143,12 @@ class Pinger(threading.Thread):
         self.ser = ser
         self.period = 1.0 / rate_hz
         self.stop_event = stop_event
+        # Echo round-trip ≈ 2 × frame_tx_time. Floor 5 мс — потолок для high-baud
+        # (на 420k 2×620µs+2ms = 3.2ms, упирается в floor). На 9600 даёт ~56 мс —
+        # без этого low-baud sanity test всегда false-FAIL'ит из-за timeout, а не
+        # из-за физики.
+        frame_tx_time = FRAME_SIZE * 10 / baud
+        self.echo_deadline = max(2 * frame_tx_time + 0.002, 0.005)
         self.sent = 0
         self.received = 0
         self.matched = 0
@@ -187,8 +194,11 @@ class Pinger(threading.Thread):
                 next_tx += self.period
                 continue
             self.sent += 1
-            # Ждём ответа до 5 мс (или короче, если уже след. tx).
-            deadline = min(time.monotonic() + 0.005, next_tx + self.period * 0.8)
+            # Ждём ответа до self.echo_deadline (адаптивно под baud), но не дольше
+            # чем 80% оставшегося до следующего tx.
+            deadline = min(
+                time.monotonic() + self.echo_deadline, next_tx + self.period * 0.8
+            )
             received = self._try_read_frame(deadline)
             if received is not None:
                 self.received += 1
@@ -251,7 +261,7 @@ def main() -> int:
     signal.signal(signal.SIGTERM, on_sig)
 
     echoer = Echoer(ser_b, stop_event)
-    pinger = Pinger(ser_a, args.rate, stop_event)
+    pinger = Pinger(ser_a, args.baud, args.rate, stop_event)
 
     log.info(
         "running: pinger @ %.0f Hz  for %.0f s  (Ctrl-C to stop early)",
