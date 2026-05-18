@@ -54,6 +54,29 @@ DEFAULT_RATE_HZ = 500.0
 FRAME_SIZE = 26
 CRSF_SYNC = 0xC8
 
+log = logging.getLogger("bench-loopback")
+
+
+def compute_echo_deadline(baud: int, frame_size: int = FRAME_SIZE) -> float:
+    """Бюджет на echo round-trip, в секундах.
+
+    Два frame_tx_time (туда + обратно) + 2 мс запаса. Floor 5 мс для high-baud,
+    где wire-time (< 1 мс) перекрывается USB-CDC latency и нет смысла мерить
+    меньше резолюции `serial.read(timeout=0.01)`.
+    """
+    frame_tx_time = frame_size * 10 / baud
+    return max(2 * frame_tx_time + 0.002, 0.005)
+
+
+def compute_period_cap(period: float, echo_deadline: float) -> float:
+    """Per-cycle потолок на deadline (отсчитывается от `next_tx`).
+
+    Оставляет 5 мс на setup следующей итерации, но НИКОГДА не меньше
+    echo_deadline — иначе на low-baud cap отстригает echo, не дав ему доехать,
+    и весь тест false-FAIL'ит независимо от физики (баг 207ff66).
+    """
+    return max(period - 0.005, echo_deadline)
+
 
 def make_frame(seq: int) -> bytes:
     """Сгенерировать кадр с seq, узнаваемым на приёмной стороне."""
@@ -143,12 +166,15 @@ class Pinger(threading.Thread):
         self.ser = ser
         self.period = 1.0 / rate_hz
         self.stop_event = stop_event
-        # Echo round-trip ≈ 2 × frame_tx_time. Floor 5 мс — потолок для high-baud
-        # (на 420k 2×620µs+2ms = 3.2ms, упирается в floor). На 9600 даёт ~56 мс —
-        # без этого low-baud sanity test всегда false-FAIL'ит из-за timeout, а не
-        # из-за физики.
-        frame_tx_time = FRAME_SIZE * 10 / baud
-        self.echo_deadline = max(2 * frame_tx_time + 0.002, 0.005)
+        self.echo_deadline = compute_echo_deadline(baud)
+        if self.echo_deadline > self.period - 0.005:
+            log.warning(
+                "echo_deadline %.0f ms ≥ period %.0f ms − 5 ms setup margin: "
+                "rate too high for baud, pinger will fall behind schedule "
+                "(expect false FAILs)",
+                self.echo_deadline * 1000,
+                self.period * 1000,
+            )
         self.sent = 0
         self.received = 0
         self.matched = 0
@@ -189,15 +215,18 @@ class Pinger(threading.Thread):
             frame = make_frame(seq)
             try:
                 self.ser.write(frame)
+                # tcdrain: ждём, пока байты реально уйдут с host'а. Без этого
+                # USB-CDC latency (1-2 мс) съедает margin на high-baud и
+                # сдвигает echo_deadline относительно фактической wire-time.
+                self.ser.flush()
             except (serial.SerialTimeoutException, serial.SerialException):
                 self.sent += 1
                 next_tx += self.period
                 continue
             self.sent += 1
-            # Ждём ответа до self.echo_deadline (адаптивно под baud), но не дольше
-            # чем 80% оставшегося до следующего tx.
             deadline = min(
-                time.monotonic() + self.echo_deadline, next_tx + self.period * 0.8
+                time.monotonic() + self.echo_deadline,
+                next_tx + compute_period_cap(self.period, self.echo_deadline),
             )
             received = self._try_read_frame(deadline)
             if received is not None:
@@ -241,7 +270,6 @@ def main() -> int:
 
     # Для bench-инструмента простой формат без timestamp — чище в терминале.
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    log = logging.getLogger("bench-loopback")
 
     log.info(
         "opening port-a=%s  port-b=%s  @ %d baud",
