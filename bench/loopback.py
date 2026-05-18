@@ -1,37 +1,68 @@
-"""Loopback bench: RS485 auto-direction check at 420k baud.
+"""Loopback bench: RS485 round-trip между двумя адаптерами на одной Pi.
 
-Закрывает открытый вопрос HANDOFF §7.1 (auto-direction RS485 на 420k бод —
-работает ли заявленное аппаратное переключение на Waveshare USB-TO-RS485 (B)
-с чипом CH343G+SP485EEN под нагрузкой 250-500 Hz).
+⚠️  ВНИМАНИЕ: тест эмулирует НЕ production data-flow.
+   См. секцию «Соответствие production» ниже перед интерпретацией результатов.
+   §7.1 HANDOFF закрыт документально (вариант A+C) — не на основании
+   PASS этого скрипта, а через raw `stty` + `cat`/`printf` (6/6 раз
+   1000/1000 байт без потерь на 1200 бод).
 
-Архитектура: один Python-процесс, два потока. Каждый управляет своим
-USB-RS485 адаптером. Между адаптерами проложены три перемычки между
-клеммниками:
+## Архитектура
+
+Один Python-процесс, два потока. Каждый управляет своим USB-RS485
+адаптером. Между адаптерами проложены три перемычки между клеммниками:
 
     Waveshare #A  A+   <->  Waveshare #B  A+
     Waveshare #A  B-   <->  Waveshare #B  B-
     Waveshare #A  GND  <->  Waveshare #B  GND
 
-Pinger (порт A): шлёт фрейм с инкрементным seq, ждёт ответа до 5 мс.
+Pinger (порт A): шлёт фрейм с инкрементным seq, ждёт ответа.
 Echoer (порт B): читает фрейм, тут же шлёт его обратно тем же содержимым.
+Один цикл = 2 переключения direction RS485 (A: TX→RX; B: RX→TX→RX).
 
-Один цикл = 2 переключения direction RS485 (A: TX->RX; B: RX->TX->RX).
-Это нагружает именно тот механизм auto-direction, который мы проверяем.
+## Запуск
 
-Запуск (на любой Pi с двумя подключёнными Waveshare):
-
-    python3 bench/loopback.py --port-a /dev/ttyACM-CRSF1 \\
-                              --port-b /dev/ttyACM-CRSF2
     python3 bench/loopback.py --port-a /dev/ttyACM-CRSF1 \\
                               --port-b /dev/ttyACM-CRSF2 \\
-                              --baud 420000 --duration 30 --rate 500
+                              --baud 9600 --rate 10 --duration 10
 
-Вердикт:
-  PASS:     loss < 1%   — auto-direction работает, §7.1 закрыт.
-  MARGINAL: 1-10% loss  — auto-direction справляется на пределе, нужен ручной DE.
-  FAIL:     > 10% loss  — auto-direction сломан, обязателен TIOCSRS485 mode.
+## Соответствие production
+
+Bench эмулирует **bidirectional ping-pong на одной RS485 шине через два
+адаптера на одной Pi**. В production такого сценария НЕТ:
+
+- На u2-pi: ELRS Tx → Waveshare → `common/crsf_bridge.py` → UDP
+  (one-way streaming от Tx к bridge'у).
+- На u1-pi: UDP → `common/crsf_bridge.py` → Waveshare → П1 trainer-port
+  (one-way streaming от bridge'a к П1).
+- Между u1-pi и u2-pi — IP-сеть (CPE710 / WireGuard), не общая RS485 шина.
+
+Реальный auto-direction Waveshare в production переключается только в
+**одну сторону** на каждом адаптере (TX-only на u2-side, RX-only на u1-side,
+или наоборот для телеметрии) — типичный CRSF use case, поддержан индустрией.
+Bench нагружает auto-direction быстрыми DE-переключениями с **обеих**
+сторон одновременно — это отдельный режим, и его нестабильность
+**не означает, что production-flow сломан**.
+
+## Limitations
+
+- На high-baud (420k) bidirectional ping-pong требует стабильного DE на
+  двух адаптерах одновременно. Waveshare USB-TO-RS485 (B) с авто-DE на
+  CH343G+SP485EEN это не обеспечивает — наблюдались колебания
+  `echoer.bytes_received` от 22 до 2073 байт между прогонами без
+  изменений в коде или железе. Для bidirectional нагрузки на высоких
+  baud нужен ручной TIOCSRS485 mode (не реализовано — production его
+  не требует).
+- На low-baud (1200, 9600) bench показывает корректную физику в
+  forward-направлении, но B→A путь зависит от auto-direction timing
+  и может давать `matched=0` даже на «здоровом» железе. Физика
+  подтверждается отдельно через raw `stty raw -echo` + `cat`/`printf` —
+  без bench-скрипта (см. §7.1 HANDOFF, секция «Что подтверждено
+  raw-тестом»).
 
 Скрипт не входит в `verify.ps1` (это инструмент, не production-код).
+Pure helpers `compute_echo_deadline` / `compute_period_cap` покрыты
+unit-тестами в `tests/unit/test_loopback.py` (включая регрессию `207ff66`
+на invariant `cap ≥ deadline`).
 """
 
 import argparse

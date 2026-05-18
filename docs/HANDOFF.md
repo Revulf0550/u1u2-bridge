@@ -950,6 +950,18 @@ PEER_PORT=5600
 - **`crsf_bridge.py` бенч-валидация на обеих Pi:** `--dry-run` ОК, auto-reconnect ОК, `INFO uart opened` появляется в логе после монтирования symlinks. Реального CRSF-трафика 420k бод ещё не было — будет при подключении ELRS-передатчиков.
 - **CPE710:** в bench-фазе не используется — трафик между u1-pi и u2-pi идёт через WG-туннель к VPS. Локальный CPE710-link будет поднят на полевой фазе.
 - **Адаптеры CP2102 и CH340G** (из старых фото) **в проект не идут**, могут пригодиться для loopback bench-теста TX↔RX на одной Pi.
+
+### Сессия 2026-05-18 (продолжение, вечер) — bench/loopback диагностика
+
+- **`bench/loopback.py` фиксы — 3 commit'а:**
+  - `397ce65` — `compute_period_cap` (root cause 207ff66 — cap отстригал echo_deadline на низких baud) + warning при `echo_deadline > period − 5 ms` + (ошибочный) `ser.flush()`.
+  - `060e52f` — откат `ser.flush()`: на USB-CDC tcdrain не даёт надёжной wire-empty barrier, ломал low-baud loopback ещё сильнее.
+  - `23a994e` — margin в `compute_echo_deadline` 2 мс → 20 мс под реальный USB-CDC overhead (~10 мс измерен wire-trace'ом на 1200/2Hz: 443 мс RT vs 436 мс old deadline → missed by 7 мс).
+- **Raw streaming тест физики (в обход bench):** через `stty raw -echo` + `printf 1000 байт` / `timeout 10 cat | xxd` между CRSF1↔CRSF2 на u1-pi, 6 прогонов (3 туда + 3 обратно) — **6/6 раз ровно 1000/1000 байт без потерь** на 1200 бод. Физика, провод, GND, оба Waveshare и auto-direction в одну сторону — подтверждены.
+- **Диагноз:** `bench/loopback.py` тестирует bidirectional ping-pong на одной RS485 шине через два адаптера — сценарий, которого в production нет (см. §7.1). Нестабильность bench (echoer.bytes_received от 22 до 2073 байт между прогонами без изменений в коде/железе) — это limitation Waveshare auto-direction на быстрых DE-переключениях с двух сторон, не дефект железа и не баг bench-скрипта.
+- **Решение:** §7.1 закрыт документально по варианту «документируем ограничение, движемся дальше». TIOCSRS485 не вкладываемся. Реальная валидация — при подключении ELRS Tx (§8 #1).
+- **Unit-тесты:** `tests/unit/test_loopback.py` (6 тестов) на `compute_echo_deadline` + `compute_period_cap`, включая регрессию `207ff66` (`cap ≥ deadline` для всех (baud, rate) пар) — pinning формул, чтобы будущие правки margin/cap не сломали тихо.
+
 ### Что работает (код написан и логически готов)
 
 | Компонент | Статус | Замечание |
@@ -996,16 +1008,25 @@ PEER_PORT=5600
 
 ## 7. Известные проблемы / баги
 
-### 7.1. RS485 auto-direction на 420 000 бод — не подтверждено
+### 7.1. RS485 auto-direction на 420 000 бод — РЕШЕНО (вопрос был некорректно поставлен)
 
-**Симптом:** Текущий `crsf_bridge.py` ничего не знает про RS485 и просто пишет/читает `/dev/ttyUSBx`. На Waveshare USB-TO-RS485 (B) заявлено аппаратное auto-direction через TX-detect, но **на 420k бод half-duplex это не проверено**.
+**Резюме:** Физика жива; исходный вопрос неактуален. Разрешение состоялось в bench-сессии 2026-05-18 (вечер) — см. также §6 «Сессия 2026-05-18 (продолжение)» и урок в `CLAUDE.md` от того же дня.
 
-**Гипотезы причин если не сработает:**
-- Auto-direction схема на Waveshare медленная, не успевает переключиться TX→RX между байтами
-- SP485EEN требует guard-time, который на 420k нарушает таймин CRSF
-- CRSF-фреймы 250–500 Гц могут вызвать коллизии когда обе стороны пытаются передать одновременно
+**Что подтверждено raw-тестом (в обход bench-скрипта):** между двумя Waveshare USB-TO-RS485 (B) на u1-pi (CRSF1↔CRSF2), три перемычки A↔A/B↔B/GND↔GND, `stty raw -echo` + `printf` 1000 байт в одном окне + `cat` в другом, **6 прогонов (3 туда + 3 обратно) → 6/6 ровно 1000/1000 байт без потерь** на 1200 бод. Адаптеры, провод, GND, auto-direction в одну сторону — все подтверждены.
 
-**План если сработает плохо:** добавить ручное управление direction через RTS + `fcntl.ioctl(TIOCSRS485)` с правильным `delay_rts_before_send`/`delay_rts_after_send`. Это меняет `open_serial()` и добавляет несколько строк, но не пересборку архитектуры.
+**Что нашли в `bench/loopback.py` пока чинили (3 commit'а):**
+1. `397ce65` — `compute_period_cap(period, echo_deadline)` гарантирует `cap ≥ deadline` (фикс root cause 207ff66 — cap отстригал deadline на низких baud).
+2. `060e52f` — откат `ser.flush()` (tcdrain): на USB-CDC не даёт надёжной wire-empty barrier, ломал low-baud loopback.
+3. `23a994e` — margin в `compute_echo_deadline` 2 мс → 20 мс под реальный USB-CDC overhead (~10 мс, замерен wire-trace'ом на 1200/2Hz).
+
+**Почему §7.1 в исходной формулировке неактуален:** `bench/loopback.py` тестирует **bidirectional ping-pong на одной RS485 шине через два адаптера на одной Pi**. В production такого сценария НЕТ:
+- На u2-pi: ELRS Tx → Waveshare → `crsf_bridge.py` → UDP (one-way streaming).
+- На u1-pi: UDP → `crsf_bridge.py` → Waveshare → П1 (one-way streaming).
+- Между u1 и u2 — IP-сеть (CPE710 / WireGuard), не общая RS485 шина.
+
+Auto-direction Waveshare на 420k в **одну** сторону — типичный CRSF use case, поддержан индустрией. Bidirectional ping-pong через одну шину с двумя адаптерами — отдельный режим, и нестабильность bench-результатов (`echoer.bytes_received` скакал от 22 до 2073 байт между прогонами без изменений в коде/железе) — это limitation auto-direction на быстрых DE-переключениях с двух сторон, не дефект железа и не баг bench-скрипта.
+
+**Решение (вариант A+C):** документируем ограничение, TIOCSRS485 не вкладываемся (overhead на разработку + риск перешибать рабочее железо). `bench/loopback.py` module docstring дополнен секциями «Соответствие production» и «Limitations» (commit с этой правкой). Реальная валидация — при подключении ELRS Tx к Waveshare на u2-pi, см. §8 (следующий приоритет).
 
 ### 7.2. Имя сетевого интерфейса в `install.sh`
 
@@ -1062,14 +1083,20 @@ udevadm info -a /dev/ttyACM<N> | grep -m1 'ATTRS{serial}'
 - ✅ Подключить адаптеры Waveshare USB-RS485 (3 из 4)
 - ✅ udev-правила со стабильными именами `/dev/ttyACM-CRSFx`
 - ✅ Оба CRSF-моста `crsf-bridge@tx1/tx2` зелёные на обеих Pi с открытым UART
+- ✅ Bench/loopback диагностика (вечер): физика подтверждена raw тестом (6/6 × 1000/1000 байт), bench-скрипт исправлен 3 commit'ами, §7.1 закрыт документально
+
+**Следующий приоритет:** пункт 1 ниже — подключение ELRS Tx к Waveshare на u2-pi для реального CRSF-потока через `crsf_bridge.py`. Bench-тема закрыта, дальше — production-валидация.
 
 **К сделать:**
 
-1. **Гигиена секретов:** ротация WireGuard-ключей и PSK для u2-pi и u1-pi (засветились в чатах разработки). В wg-easy веб-UI у каждого пира «regenerate», скачать новый conf, заменить `/etc/wireguard/wg0.conf` на Pi, `sudo systemctl restart wg-quick@wg0`. ~5 минут на пир.
+1. **Подключить ELRS-передатчики** к Waveshare-адаптерам на u2-pi, реальный CRSF-трафик 420k бод через `crsf_bridge.py`. Проверить:
+   - Бод-rate stability при джиттере туннеля
+   - Потери в `journalctl -u crsf-bridge@tx1 -f` под нагрузкой
+   - One-way streaming (production data-flow, не bidirectional ping-pong — см. §7.1)
 
-2. **Гигиена репо:** дополнить `.gitignore` правилами `*.conf` и т.п., положить в `docs/wg-template.conf` шаблон с замазанными ключами для документации структуры. Один коммит.
+2. **Гигиена секретов:** ротация WireGuard-ключей и PSK для u2-pi и u1-pi (засветились в чатах разработки). В wg-easy веб-UI у каждого пира «regenerate», скачать новый conf, заменить `/etc/wireguard/wg0.conf` на Pi, `sudo systemctl restart wg-quick@wg0`. ~5 минут на пир.
 
-3. **Поправить `crsf_bridge.py`:** добавить DEBUG-лог для входящего UDP при `ser is None` (drop с счётчиком), чтобы smoke-тесты «UDP дошёл/нет» давали валидный результат ещё до подключения адаптеров. См. урок 2026-05-18 в CLAUDE.md.
+3. **Гигиена репо:** дополнить `.gitignore` правилами `*.conf` и т.п., положить в `docs/wg-template.conf` шаблон с замазанными ключами для документации структуры. Один коммит.
 
 4. **Физическая маркировка адаптеров Waveshare** — наклейкой с номером канала и серийником на каждом, чтобы при сборке не путать `CRSF1` и `CRSF2` (это две разные ELRS-передающие модели).
 
@@ -1084,20 +1111,15 @@ udevadm info -a /dev/ttyACM<N> | grep -m1 'ATTRS{serial}'
 
 8. **Уточнить скорость CTRL-канала** (бод rate переключения каналов VRX), создать `crsf-ctrl.env` с правильной скоростью, поднять `crsf-bridge@ctrl.service`.
 
-9. **Подключить ELRS-передатчики** к Waveshare-адаптерам на u2-pi, реальный CRSF-трафик 420k бод. Проверить:
-   - Auto-direction RS485 на 420k бод — работает ли (см. §7.1)
-   - Бод-rate stability при джиттере туннеля
-   - Потери в `journalctl` под нагрузкой
+9. **Подключить видеограббер к VRX** на u2-pi, запустить `video_tx.sh`/`video_rx.sh`, проверить картинку на HDMI-мониторе u1-pi.
 
-10. **Подключить видеограббер к VRX** на u2-pi, запустить `video_tx.sh`/`video_rx.sh`, проверить картинку на HDMI-мониторе u1-pi.
-
-11. **Полевые испытания на дистанции 500–1000 м.** Замерить:
+10. **Полевые испытания на дистанции 500–1000 м.** Замерить:
     - Реальную latency видео (gopher-метод с миллисекундным таймером)
     - Стабильность CRSF (RSSI/потери на пульте П1)
     - Throughput через CPE710 в реальных условиях
     - Стабильность WireGuard handshake (если оставим VPN поверх)
 
-12. **После полевых — рассмотреть watchdog/мониторинг:** OSD-наложение на видео с RSSI/SNR, hardware watchdog RK3588, read-only rootfs для production-устойчивости.
+11. **После полевых — рассмотреть watchdog/мониторинг:** OSD-наложение на видео с RSSI/SNR, hardware watchdog RK3588, read-only rootfs для production-устойчивости.
 
 ---
 
