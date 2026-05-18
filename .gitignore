@@ -21,3 +21,12 @@ wg0.conf
 .idea/
 .DS_Store
 Thumbs.db
+
+# WireGuard configs — содержат приватные ключи и PSK, никогда не коммитить
+*.conf
+!docs/wg-template.conf
+
+# Firmware images (большие бинарники, не в репо)
+firmware/*.img
+firmware/*.img.xz
+firmware/*.img.gz
