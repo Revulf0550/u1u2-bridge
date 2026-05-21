@@ -12,16 +12,28 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+from common.channel_map import (
+    CRSF_CH_HIGH,
+    CRSF_CH_LOW,
+    AxisMapping,
+    ChannelMapConfig,
+    SwitchMapping,
+)
 from common.joystick_to_crsf import (
     ABS_X,
     ABS_Y,
+    BTN_TRIGGER,
     ELRS_CENTER,
     EV_ABS,
+    EV_KEY,
     JoystickState,
     _apply_event,
+    _failsafe_channels,
+    _load_channel_map,
     _tick,
     _try_reopen,
     normalize_axis,
@@ -209,3 +221,77 @@ class TestTryReopen:
 
         assert open_mock.call_count == 0
         assert state.device is existing
+
+
+# --- channel-map (config-path) integration --------------------------------
+
+
+def _tiny_config() -> ChannelMapConfig:
+    """Минимальный config: 1 ось + 1 свич, остальное по дефолту → 992."""
+    return ChannelMapConfig(
+        axes=(
+            AxisMapping(
+                name="roll",
+                source="ABS_X",
+                channel=1,
+                min_raw=0,
+                max_raw=1000,
+                center_raw=500,
+            ),
+        ),
+        switches=(SwitchMapping(name="arm", source="BTN_TRIGGER", channel=5, kind="2pos"),),
+    )
+
+
+class TestApplyEventConfigPath:
+    def test_axis_event_routed_through_apply_mapping(self) -> None:
+        state = JoystickState(config=_tiny_config())
+        _apply_event(state, SimpleNamespace(type=EV_ABS, code=ABS_X, value=1000))
+        # 1000 = max_raw → CRSF_CH_HIGH (1811) на канале 1 (index 0).
+        assert state.channels[0] == CRSF_CH_HIGH
+        assert state.raw_state["ABS_X"] == 1000
+
+    def test_button_event_routed_through_apply_mapping(self) -> None:
+        state = JoystickState(config=_tiny_config())
+        _apply_event(state, SimpleNamespace(type=EV_KEY, code=BTN_TRIGGER, value=1))
+        # BTN_TRIGGER pressed → arm = HIGH (1811) на канале 5 (index 4).
+        assert state.channels[4] == CRSF_CH_HIGH
+
+    def test_unknown_evdev_code_ignored_in_config_path(self) -> None:
+        state = JoystickState(config=_tiny_config())
+        _apply_event(state, SimpleNamespace(type=EV_ABS, code=0xFF, value=100))
+        # ABS_? = 0xFF не в EVENT_CODE_NAMES → raw_state не меняется.
+        assert state.raw_state == {}
+
+
+class TestFailsafeChannels:
+    def test_legacy_failsafe_is_all_center(self) -> None:
+        assert _failsafe_channels(None) == [ELRS_CENTER] * 16
+
+    def test_config_failsafe_low_for_switches(self) -> None:
+        # apply_mapping({}, _tiny_config()): roll=MID (центрированная),
+        # arm=LOW (свич без сигнала). Остальные слоты = MID.
+        channels = _failsafe_channels(_tiny_config())
+        assert channels[4] == CRSF_CH_LOW  # arm disarmed by default
+        assert channels[0] == ELRS_CENTER  # roll centered
+
+
+class TestLoadChannelMap:
+    def test_missing_file_returns_none_with_warning(
+        self, mocker: MockerFixture, tmp_path: Path
+    ) -> None:
+        log = mocker.MagicMock()
+        config = _load_channel_map(str(tmp_path / "nope.toml"), log)
+        assert config is None
+        assert log.warning.call_count == 1
+
+    def test_valid_file_returns_config(self, tmp_path: Path) -> None:
+        toml = tmp_path / "ch.toml"
+        toml.write_text(
+            '[axis.roll]\nsource = "ABS_X"\nchannel = 1\nmin_raw = 0\nmax_raw = 100\n',
+            encoding="utf-8",
+        )
+        config = _load_channel_map(str(toml), _make_log())
+        assert config is not None
+        assert len(config.axes) == 1
+        assert config.axes[0].name == "roll"

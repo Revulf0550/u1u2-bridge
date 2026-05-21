@@ -1,0 +1,90 @@
+# channels.default.toml — дефолтный channel mapping для TX12 в joystick mode.
+#
+# !!! ВНИМАНИЕ: все значения min_raw / max_raw / center_raw / source ниже —
+# !!! ЭТО BEST-GUESS на основе стандарта EdgeTX joystick mode.
+# !!! РЕАЛЬНЫЕ КОДЫ И ДИАПАЗОНЫ ОБЯЗАТЕЛЬНО подтвердить через:
+# !!!
+# !!!     evtest /dev/input/eventN
+# !!!
+# !!! при подключённом TX12 в режиме USB joystick (Sys -> USB Joystick на TX12).
+# !!! Запишите для каждой ручки наблюдаемый min/center/max и для каждого
+# !!! свича — какой evdev-код (BTN_* / ABS_*) и какие raw-значения он шлёт.
+#
+# install.sh копирует этот файл в /etc/u1u2-bridge/channels.toml ТОЛЬКО если
+# его там ещё нет — повторный запуск install.sh пользовательскую калибровку
+# не затрёт.
+#
+# Конвенция CRSF (Betaflight): 172=low (~1000µs), 992=center (~1500µs),
+# 1811=high (~2000µs). Каналы 1-indexed (channel=5 = AUX1 в Betaflight).
+#
+# Failsafe: при отсутствии raw_state (USB disconnect / до первого event)
+# центрированные оси отдают 992, throttle (без center_raw) — 172,
+# свичи — 172. См. common/channel_map.py докстринг.
+
+# ---------------- Аналоговые оси ----------------
+# TX12 в EdgeTX joystick mode (16-bit ADC) обычно даёт 0..65535. На своей
+# плате уточните `evtest` — некоторые сборки шлют 0..1023 или -32768..32767.
+
+[axis.roll]
+source = "ABS_X"
+channel = 1
+min_raw = 0
+max_raw = 65535
+center_raw = 32767
+deadband = 200          # ± 200 raw вокруг центра → ровно 992 (анти-дрейф гимбала)
+invert = false
+
+[axis.pitch]
+source = "ABS_Y"
+channel = 2
+min_raw = 0
+max_raw = 65535
+center_raw = 32767
+deadband = 200
+invert = true           # ABS_Y вниз = положительное значение, но pitch вниз = CRSF-low
+
+[axis.throttle]
+source = "ABS_RZ"
+channel = 3
+min_raw = 0
+max_raw = 65535
+# center_raw НЕ задан → throttle унидирекционален (без deadband).
+# При USB-disconnect throttle уходит в 172 (idle) — failsafe.
+invert = false          # стик вверх → ABS_RZ растёт → CRSF растёт → full throttle
+
+[axis.yaw]
+source = "ABS_Z"
+channel = 4
+min_raw = 0
+max_raw = 65535
+center_raw = 32767
+deadband = 200
+invert = false
+
+# ---------------- Свичи ----------------
+# В EdgeTX joystick mode свичи приходят как:
+# - 2-pos (SA/SB/SD) → пары BTN_BASEx (отпущен = 0, нажат = 1);
+# - 3-pos (SC) часто → ABS_HAT0Y (-1 / 0 / 1) ИЛИ две пары кнопок;
+# - momentary (SH) → одна BTN_TRIGGER-подобная кнопка.
+#
+# ВСЕ source-имена ниже — guess. Подтвердить evtest при подключённом TX12.
+
+[switch.arm]
+source = "BTN_TRIGGER"
+channel = 5             # AUX1 — стандарт Betaflight ARM
+kind = "2pos"
+# arm-свич: off (raw=0) → 172 (disarm), on (raw=1) → 1811 (arm).
+
+[switch.mode]
+source = "BTN_THUMB"
+channel = 6             # AUX2 — стандарт Betaflight flight mode (angle/horizon/acro)
+kind = "3pos"
+low_raw = 0             # raw <= 0 → 172 (low)
+high_raw = 2            # raw >= 2 → 1811 (high), иначе → 992 (mid)
+# ВАЖНО: если 3-pos свич на TX12 приходит как ABS_HAT0Y (-1/0/1),
+# то source = "ABS_HAT0Y", low_raw = -1, high_raw = 1.
+
+[switch.beeper]
+source = "BTN_THUMB2"
+channel = 7             # AUX3 — momentary (отпущен → 172, нажат → 1811)
+kind = "momentary"

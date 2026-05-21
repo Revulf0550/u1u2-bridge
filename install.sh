@@ -165,7 +165,16 @@ if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
 DEVICE=/dev/input/event0
 PEER=$PEER_HOST:14550
 RATE_HZ=250
+CHANNEL_MAP_PATH=/etc/u1u2-bridge/channels.toml
 EOF
+  # Idempotent копирование дефолтного channel-map. НЕ перезаписываем — иначе
+  # затрём пользовательскую калибровку при повторном install.sh.
+  if [[ ! -f /etc/u1u2-bridge/channels.toml ]]; then
+    install -m 0644 "$REPO/common/channels.default.toml" /etc/u1u2-bridge/channels.toml
+    echo "==> channels.toml: установлен дефолт (требует калибровки через evtest)"
+  else
+    echo "==> channels.toml: уже существует, оставляем как есть"
+  fi
 else
   # bench (u1+u2) и u2-drone: одинаковые crsf-tx*.env с переменным PEER_HOST
   cat > /etc/u1u2-bridge/crsf-tx1.env <<EOF
