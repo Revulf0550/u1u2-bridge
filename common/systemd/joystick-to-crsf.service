@@ -1,0 +1,24 @@
+# /etc/systemd/system/joystick-to-crsf.service
+#
+# Non-template юнит для u1-drone: TX12 HID -> CRSF UDP к u2-pi.
+
+[Unit]
+Description=Joystick (TX12 HID) -> CRSF UDP
+After=network-online.target dev-input-js0.device
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/u1u2-bridge/joystick.env
+ExecStart=/usr/bin/python3 /opt/u1u2-bridge/common/joystick_to_crsf.py \
+  --device $DEVICE \
+  --peer $PEER \
+  --rate $RATE_HZ
+Restart=always
+RestartSec=2
+Nice=-10
+IOSchedulingClass=realtime
+IOSchedulingPriority=4
+
+[Install]
+WantedBy=multi-user.target

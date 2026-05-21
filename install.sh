@@ -35,13 +35,19 @@ if [[ "$ROLE" != "u1" && "$ROLE" != "u2" ]]; then
   exit 1
 fi
 
+MODE="${MODE:-bench}"
+if [[ "$MODE" != "bench" && "$MODE" != "drone" ]]; then
+  echo "Usage: MODE={bench|drone} $0 {u1|u2}" >&2
+  exit 1
+fi
+
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root" >&2
   exit 1
 fi
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
-echo "==> repo: $REPO  role: $ROLE"
+echo "==> repo: $REPO  role: $ROLE  mode: $MODE"
 
 # --- 1. зависимости -----------------------------------------------------------
 apt update
@@ -54,13 +60,19 @@ apt install -y \
   wireguard wireguard-tools \
   curl git
 
-# --- 2. проверка RKMPP --------------------------------------------------------
-if ! gst-inspect-1.0 mpph264enc &>/dev/null; then
-  echo "!! mpph264enc не найден — проверьте, что установлен gstreamer1.0-rockchip1"
-  echo "!! и что вы на образе с поддержкой Rockchip MPP (joshua-riek или Armbian)"
-  exit 1
+if [[ "$MODE" == "drone" ]]; then
+  apt install -y python3-evdev
 fi
-echo "==> RKMPP encoder available"
+
+# --- 2. проверка RKMPP --------------------------------------------------------
+if [[ "$MODE" == "bench" ]]; then
+  if ! gst-inspect-1.0 mpph264enc &>/dev/null; then
+    echo "!! mpph264enc не найден — проверьте, что установлен gstreamer1.0-rockchip1"
+    echo "!! и что вы на образе с поддержкой Rockchip MPP (joshua-riek или Armbian)"
+    exit 1
+  fi
+  echo "==> RKMPP encoder available"
+fi
 
 # --- 3. определение сетевого интерфейса --------------------------------------
 # Если IFACE задан явно — используем его. Иначе берём первый не-lo интерфейс
@@ -115,38 +127,58 @@ install -d /opt/u1u2-bridge/common "/opt/u1u2-bridge/$ROLE"
 install -m 0755 "$REPO/common/crsf_bridge.py" /opt/u1u2-bridge/common/
 install -m 0755 "$REPO/$ROLE"/*.sh "/opt/u1u2-bridge/$ROLE/"
 
+if [[ "$MODE" == "drone" ]]; then
+  install -m 0644 "$REPO/common/crsf.py" /opt/u1u2-bridge/common/
+  if [[ "$ROLE" == "u1" ]]; then
+    install -m 0755 "$REPO/common/joystick_to_crsf.py" /opt/u1u2-bridge/common/
+  fi
+fi
+
 # --- 6. systemd-юниты ---------------------------------------------------------
 install -m 0644 "$REPO/common/systemd/crsf-bridge@.service" /etc/systemd/system/
 install -m 0644 "$REPO/$ROLE/systemd/"*.service /etc/systemd/system/
 
-# --- 7. env-файлы для CRSF-моста ----------------------------------------------
-# SERIAL_DEV — символические имена через udev (см. §8). Для Waveshare на CH343G
-# имена /dev/ttyACM-CRSFx (драйвер cdc_acm), не /dev/ttyUSBx.
-if [[ "$ROLE" == "u2" ]]; then
-  cat > /etc/u1u2-bridge/crsf-tx1.env <<EOF
-SERIAL_DEV=/dev/ttyACM-CRSF1
-BAUD=420000
-LISTEN=0.0.0.0:14550
-PEER=$PEER_IP:14550
-EOF
-  cat > /etc/u1u2-bridge/crsf-tx2.env <<EOF
-SERIAL_DEV=/dev/ttyACM-CRSF2
-BAUD=420000
-LISTEN=0.0.0.0:14551
-PEER=$PEER_IP:14551
+if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
+  install -m 0644 "$REPO/common/systemd/joystick-to-crsf.service" /etc/systemd/system/
+fi
+
+# --- 7. env-файлы для CRSF-моста / joystick -----------------------------------
+# PEER_HOST зависит от (MODE, ROLE).
+# Bench: peer через CPE710 LAN. Drone: peer через WG-туннель.
+if [[ "$MODE" == "drone" ]]; then
+  if [[ "$ROLE" == "u2" ]]; then
+    PEER_HOST="10.8.0.6"
+  else
+    PEER_HOST="10.8.0.7"
+  fi
+else
+  if [[ "$ROLE" == "u2" ]]; then
+    PEER_HOST="192.168.1.20"
+  else
+    PEER_HOST="192.168.1.10"
+  fi
+fi
+
+if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
+  # u1-drone: только joystick.env, crsf-tx*.env не нужны
+  cat > /etc/u1u2-bridge/joystick.env <<EOF
+DEVICE=/dev/input/js0
+PEER=$PEER_HOST:14550
+RATE_HZ=250
 EOF
 else
+  # bench (u1+u2) и u2-drone: одинаковые crsf-tx*.env с переменным PEER_HOST
   cat > /etc/u1u2-bridge/crsf-tx1.env <<EOF
 SERIAL_DEV=/dev/ttyACM-CRSF1
 BAUD=420000
 LISTEN=0.0.0.0:14550
-PEER=$PEER_IP:14550
+PEER=$PEER_HOST:14550
 EOF
   cat > /etc/u1u2-bridge/crsf-tx2.env <<EOF
 SERIAL_DEV=/dev/ttyACM-CRSF2
 BAUD=420000
 LISTEN=0.0.0.0:14551
-PEER=$PEER_IP:14551
+PEER=$PEER_HOST:14551
 EOF
 fi
 
@@ -158,10 +190,13 @@ fi
 #   udevadm info -a /dev/ttyACM0 | grep -m1 'ATTRS{serial}'
 # и передавать в install.sh через env:
 #   WAVESHARE_SERIAL_1=5A98051690 WAVESHARE_SERIAL_2=... sudo ./install.sh u2
-WAVESHARE_SERIAL_1="${WAVESHARE_SERIAL_1:-REPLACE_WITH_SERIAL_1}"
-WAVESHARE_SERIAL_2="${WAVESHARE_SERIAL_2:-REPLACE_WITH_SERIAL_2}"
+if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
+  echo "==> drone-u1: пропускаем udev-правила (UART-адаптеров нет)"
+else
+  WAVESHARE_SERIAL_1="${WAVESHARE_SERIAL_1:-REPLACE_WITH_SERIAL_1}"
+  WAVESHARE_SERIAL_2="${WAVESHARE_SERIAL_2:-REPLACE_WITH_SERIAL_2}"
 
-cat > /etc/udev/rules.d/90-u1u2-uart.rules <<EOF
+  cat > /etc/udev/rules.d/90-u1u2-uart.rules <<EOF
 # Waveshare USB-TO-RS485 (B) на CH343G (1a86:55d3) — драйвер cdc_acm,
 # устройство /dev/ttyACMx, не /dev/ttyUSBx.
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", \\
@@ -169,22 +204,23 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", \\
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", \\
   ATTRS{serial}=="$WAVESHARE_SERIAL_2", SYMLINK+="ttyACM-CRSF2"
 EOF
-udevadm control --reload || true
-udevadm trigger --subsystem-match=tty --action=change || true
+  udevadm control --reload || true
+  udevadm trigger --subsystem-match=tty --action=change || true
 
-if [[ "$WAVESHARE_SERIAL_1" == "REPLACE_WITH_SERIAL_1" ]]; then
-  echo
-  echo "Info: WAVESHARE_SERIAL_1 не задан — /dev/ttyACM-CRSF1 не появится"
-  echo "      (норма для бенча с одним адаптером). Когда подключите CRSF1:"
-  echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
-  echo "        WAVESHARE_SERIAL_1=<sn> sudo ./install.sh $ROLE"
-fi
-if [[ "$WAVESHARE_SERIAL_2" == "REPLACE_WITH_SERIAL_2" ]]; then
-  echo
-  echo "Info: WAVESHARE_SERIAL_2 не задан — /dev/ttyACM-CRSF2 не появится"
-  echo "      (норма для бенча с одним адаптером). Когда подключите CRSF2:"
-  echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
-  echo "        WAVESHARE_SERIAL_2=<sn> sudo ./install.sh $ROLE"
+  if [[ "$WAVESHARE_SERIAL_1" == "REPLACE_WITH_SERIAL_1" ]]; then
+    echo
+    echo "Info: WAVESHARE_SERIAL_1 не задан — /dev/ttyACM-CRSF1 не появится"
+    echo "      (норма для бенча с одним адаптером). Когда подключите CRSF1:"
+    echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
+    echo "        WAVESHARE_SERIAL_1=<sn> sudo ./install.sh $ROLE"
+  fi
+  if [[ "$WAVESHARE_SERIAL_2" == "REPLACE_WITH_SERIAL_2" ]]; then
+    echo
+    echo "Info: WAVESHARE_SERIAL_2 не задан — /dev/ttyACM-CRSF2 не появится"
+    echo "      (норма для бенча с одним адаптером). Когда подключите CRSF2:"
+    echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
+    echo "        WAVESHARE_SERIAL_2=<sn> sudo ./install.sh $ROLE"
+  fi
 fi
 
 # Проверка, что пользователь, под которым работает systemd-юнит, в dialout —
@@ -196,7 +232,7 @@ if ! getent group dialout | grep -qw "${SUDO_USER:-ubuntu}"; then
 fi
 
 # --- 9. отключаем display-manager на У1 (kmssink требует tty) -----------------
-if [[ "$ROLE" == "u1" ]]; then
+if [[ "$ROLE" == "u1" && "$MODE" == "bench" ]]; then
   systemctl set-default multi-user.target
   systemctl disable --now gdm3 lightdm sddm 2>/dev/null || true
 fi
@@ -211,16 +247,26 @@ sysctl --system >/dev/null
 
 # --- 11. запуск ---------------------------------------------------------------
 systemctl daemon-reload
-systemctl enable --now crsf-bridge@tx1.service
-systemctl enable --now crsf-bridge@tx2.service
-if [[ -z "${SKIP_VIDEO:-}" ]]; then
-  if [[ "$ROLE" == "u2" ]]; then
-    systemctl enable --now video-tx.service
+
+if [[ "$MODE" == "drone" ]]; then
+  if [[ "$ROLE" == "u1" ]]; then
+    systemctl enable --now joystick-to-crsf.service
   else
-    systemctl enable --now video-rx.service
+    systemctl enable --now crsf-bridge@tx1.service
+    # tx2 пока не активируем — у дрона один ELRS канал
   fi
 else
-  echo "==> SKIP_VIDEO=1 — video-tx/video-rx не активируется"
+  systemctl enable --now crsf-bridge@tx1.service
+  systemctl enable --now crsf-bridge@tx2.service
+  if [[ -z "${SKIP_VIDEO:-}" ]]; then
+    if [[ "$ROLE" == "u2" ]]; then
+      systemctl enable --now video-tx.service
+    else
+      systemctl enable --now video-rx.service
+    fi
+  else
+    echo "==> SKIP_VIDEO=1 — video-tx/video-rx не активируется"
+  fi
 fi
 
 echo
