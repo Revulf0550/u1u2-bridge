@@ -23,6 +23,12 @@ from common.channel_map import (
     ChannelMapConfig,
     SwitchMapping,
 )
+from common.crsf import CRSF_SYNC_FC, crc8
+from common.crsf_telemetry import (
+    CRSF_FT_BATTERY_SENSOR,
+    CrsfTelemetryParser,
+    TelemetryState,
+)
 from common.joystick_to_crsf import (
     ABS_X,
     ABS_Y,
@@ -32,8 +38,11 @@ from common.joystick_to_crsf import (
     EV_KEY,
     JoystickState,
     _apply_event,
+    _drain_evdev,
+    _drain_telemetry_rx,
     _failsafe_channels,
     _load_channel_map,
+    _resolve_listen_port,
     _tick,
     _try_reopen,
     normalize_axis,
@@ -295,3 +304,123 @@ class TestLoadChannelMap:
         assert config is not None
         assert len(config.axes) == 1
         assert config.axes[0].name == "roll"
+
+
+# --- Telemetry RX path (Step 3.3) -----------------------------------------
+
+
+def _build_battery_frame() -> bytes:
+    """Минимальный валидный BATTERY_SENSOR frame для смок-теста RX-пути."""
+    import struct as _struct
+
+    payload = _struct.pack(">HHBBBB", 168, 152, 0, 0, 0, 87)
+    body = bytes([CRSF_FT_BATTERY_SENSOR]) + payload
+    return bytes([CRSF_SYNC_FC, len(body) + 1]) + body + bytes([crc8(body)])
+
+
+class TestResolveListenPort:
+    def test_cli_value_wins(self) -> None:
+        assert _resolve_listen_port(14600, peer_port=14550) == 14600
+
+    def test_env_used_when_no_cli(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict("os.environ", {"LISTEN_PORT": "14700"})
+        assert _resolve_listen_port(None, peer_port=14550) == 14700
+
+    def test_default_to_peer_port(self, mocker: MockerFixture) -> None:
+        mocker.patch.dict("os.environ", {}, clear=False)
+        # Ensure no env interference
+        import os as _os
+
+        _os.environ.pop("LISTEN_PORT", None)
+        assert _resolve_listen_port(None, peer_port=14550) == 14550
+
+
+class TestDrainTelemetryRx:
+    def test_drains_one_datagram_into_state(self, mocker: MockerFixture) -> None:
+        sock = mocker.MagicMock()
+        frame_bytes = _build_battery_frame()
+        sock.recvfrom.side_effect = [(frame_bytes, ("10.8.0.6", 14550)), BlockingIOError()]
+        parser = CrsfTelemetryParser(_make_log())
+        state = TelemetryState()
+        total = _drain_telemetry_rx(sock, parser, state, _make_log(), now=10.0)
+        assert total == len(frame_bytes)
+        assert state.battery is not None
+        assert state.battery_ts == 10.0
+
+    def test_drains_multiple_datagrams_until_blocking(self, mocker: MockerFixture) -> None:
+        sock = mocker.MagicMock()
+        f1 = _build_battery_frame()
+        f2 = _build_battery_frame()
+        sock.recvfrom.side_effect = [
+            (f1, ("10.8.0.6", 14550)),
+            (f2, ("10.8.0.6", 14550)),
+            BlockingIOError(),
+        ]
+        state = TelemetryState()
+        total = _drain_telemetry_rx(
+            sock, CrsfTelemetryParser(_make_log()), state, _make_log(), now=5.0
+        )
+        assert total == len(f1) + len(f2)
+        assert state.battery is not None
+
+    def test_empty_socket_returns_zero(self, mocker: MockerFixture) -> None:
+        sock = mocker.MagicMock()
+        sock.recvfrom.side_effect = BlockingIOError()
+        state = TelemetryState()
+        total = _drain_telemetry_rx(
+            sock, CrsfTelemetryParser(_make_log()), state, _make_log(), now=0.0
+        )
+        assert total == 0
+        assert state.battery is None
+
+    def test_oserror_logged_and_breaks_loop(self, mocker: MockerFixture) -> None:
+        sock = mocker.MagicMock()
+        sock.recvfrom.side_effect = OSError("EBADF")
+        log = mocker.MagicMock(spec=logging.Logger)
+        total = _drain_telemetry_rx(
+            sock, CrsfTelemetryParser(_make_log()), TelemetryState(), log, now=0.0
+        )
+        assert total == 0
+        log.warning.assert_called_once()
+
+    def test_garbage_datagram_does_not_crash(self, mocker: MockerFixture) -> None:
+        # UDP пакет случайных байт — парсер ресинкается, состояние не обновляется.
+        sock = mocker.MagicMock()
+        sock.recvfrom.side_effect = [
+            (b"\x00\x01\x02\x03", ("10.8.0.6", 14550)),
+            BlockingIOError(),
+        ]
+        state = TelemetryState()
+        _drain_telemetry_rx(sock, CrsfTelemetryParser(_make_log()), state, _make_log(), now=1.0)
+        assert state.battery is None
+        assert state.link is None
+
+
+class TestDrainEvdev:
+    def test_drain_collects_events(self, mocker: MockerFixture) -> None:
+        device = mocker.MagicMock()
+        device.read.return_value = [
+            SimpleNamespace(type=EV_ABS, code=ABS_X, value=1639),
+        ]
+        state = JoystickState(device=device, axis_ranges={ABS_X: (0, 1639)})
+        _drain_evdev(state, _make_log())
+        assert state.channels[0] == 1811
+
+    def test_drain_handles_blocking_io(self, mocker: MockerFixture) -> None:
+        device = mocker.MagicMock()
+        device.read.side_effect = BlockingIOError()
+        state = JoystickState(device=device)
+        _drain_evdev(state, _make_log())
+        assert state.device is device  # не закрылся
+
+    def test_drain_closes_device_on_oserror(self, mocker: MockerFixture) -> None:
+        device = mocker.MagicMock()
+        device.read.side_effect = OSError("ENODEV")
+        state = JoystickState(device=device)
+        _drain_evdev(state, _make_log())
+        assert state.device is None
+        device.close.assert_called_once()
+
+    def test_drain_noop_when_no_device(self) -> None:
+        state = JoystickState(device=None)
+        _drain_evdev(state, _make_log())  # не падает, ничего не делает

@@ -55,6 +55,12 @@ from common.channel_map import (
     load_config,
 )
 from common.crsf import build_rc_frame
+from common.crsf_telemetry import (
+    DEFAULT_STALE_SEC,
+    CrsfTelemetryParser,
+    TelemetryState,
+)
+from common.telemetry_logger import DEFAULT_LOG_INTERVAL_SEC, TelemetryLogger
 
 if TYPE_CHECKING:
     from evdev import InputDevice
@@ -152,6 +158,8 @@ ELRS_CENTER: int = CRSF_CH_MID
 RECONNECT_BACKOFF_S: float = 1.0
 STAT_PERIOD_S: float = 10.0
 UDP_SNDBUF: int = 65_536
+UDP_RCVBUF: int = 65_536
+UDP_RECV_CHUNK: int = 2048  # CRSF max frame 64 B; 2K — запас на batch
 
 DEFAULT_CHANNEL_MAP_PATH: str = "/etc/u1u2-bridge/channels.toml"
 
@@ -315,13 +323,83 @@ def _try_reopen(state: JoystickState, path: str, log: logging.Logger, now: float
 def open_udp_send() -> socket.socket:
     """UDP send-only сокет: AF_INET/DGRAM, REUSEADDR, SNDBUF=64K, non-blocking.
 
-    Не bind'имся на listen-адрес — telemetry-канала пока нет, шлём в одну сторону.
+    Не bind'имся на listen-адрес — для backward-compat с тестами Step 3.2.
+    В production используется :func:`open_udp_bidir` (с биндом для RX
+    телеметрии). Эту функцию оставляем как legacy-API.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, UDP_SNDBUF)
     sock.setblocking(False)
     return sock
+
+
+def open_udp_bidir(local_port: int) -> socket.socket:
+    """UDP сокет, забинженный на ``('', local_port)`` для приёма телеметрии.
+
+    Тот же сокет используется и для send (sendto(peer)) — peer-to-peer на
+    одном порту, как в :mod:`common.crsf_bridge`. REUSEADDR + RCVBUF/SNDBUF=64K
+    (буферизация против джиттера Wi-Fi моста), non-blocking IO.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, UDP_SNDBUF)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, UDP_RCVBUF)
+    sock.bind(("", local_port))
+    sock.setblocking(False)
+    return sock
+
+
+def _drain_evdev(state: JoystickState, log: logging.Logger) -> None:
+    """Слить все pending events из device в state (non-blocking).
+
+    На ``OSError`` (USB unplug) закрывает device и ставит ``state.device = None``,
+    чтобы main-loop ушёл в failsafe. Существует отдельно от ``_tick`` для
+    select-driven вызова (когда device.fd стал readable между tick'ами).
+    """
+    if state.device is None:
+        return
+    try:
+        for ev in state.device.read():
+            _apply_event(state, ev)
+    except BlockingIOError:
+        pass
+    except OSError as e:
+        log.warning("evdev read failed: %s — closing device", e)
+        with contextlib.suppress(OSError, AttributeError):
+            state.device.close()
+        state.device = None
+
+
+def _drain_telemetry_rx(
+    sock: socket.socket,
+    parser: CrsfTelemetryParser,
+    state: TelemetryState,
+    log: logging.Logger,
+    now: float,
+) -> int:
+    """Слить все доступные UDP-датаграммы, пропустить через parser, обновить state.
+
+    Возвращает суммарное число прочитанных байт. Не блокирует — выходит
+    когда recvfrom бросает BlockingIOError. ``OSError`` (закрытый сокет и т.п.)
+    логируется WARNING и прерывает цикл — состояние сокета восстанавливать
+    не пытаемся (это unrecoverable, лучше systemd рестартнёт юнит).
+    """
+    total = 0
+    while True:
+        try:
+            data, _addr = sock.recvfrom(UDP_RECV_CHUNK)
+        except BlockingIOError:
+            break
+        except OSError as e:
+            log.warning("udp recv failed: %s", e)
+            break
+        if not data:
+            break
+        total += len(data)
+        for frame in parser.feed(data):
+            state.apply(frame, now)
+    return total
 
 
 def parse_addr(s: str) -> tuple[str, int]:
@@ -347,8 +425,22 @@ def _load_channel_map(path_str: str, log: logging.Logger) -> ChannelMapConfig | 
         return None
 
 
+def _resolve_listen_port(cli_value: int | None, peer_port: int) -> int:
+    """LISTEN порт: --listen-port > env LISTEN_PORT > peer-порт.
+
+    Дефолт "тот же что у peer" — peer-to-peer на одном порту, как в
+    crsf_bridge. Это убирает один параметр конфига для дефолтного сценария.
+    """
+    if cli_value is not None:
+        return cli_value
+    env = os.environ.get("LISTEN_PORT")
+    if env:
+        return int(env)
+    return peer_port
+
+
 def main() -> int:
-    """CLI + главный цикл: select по device.fd с timeout до следующего tick'а."""
+    """CLI + select-based главный цикл с TX (CRSF) и RX (telemetry)."""
     p = argparse.ArgumentParser()
     p.add_argument(
         "--device",
@@ -356,11 +448,29 @@ def main() -> int:
         help="evdev-устройство джойстика (default: $DEVICE или /dev/input/event0)",
     )
     p.add_argument("--peer", required=True, help="host:port u2-pi для CRSF-кадров")
+    p.add_argument(
+        "--listen-port",
+        type=int,
+        default=None,
+        help="локальный UDP порт для RX телеметрии (default: $LISTEN_PORT или peer-порт)",
+    )
     p.add_argument("--rate", type=int, default=250, help="частота отправки CRSF, Hz")
     p.add_argument(
         "--channel-map",
         default=os.environ.get("CHANNEL_MAP_PATH", DEFAULT_CHANNEL_MAP_PATH),
         help="путь к TOML channel-map (default: $CHANNEL_MAP_PATH или %(default)s)",
+    )
+    p.add_argument(
+        "--telemetry-log-interval",
+        type=float,
+        default=float(os.environ.get("TELEMETRY_LOG_INTERVAL_SEC", DEFAULT_LOG_INTERVAL_SEC)),
+        help="период snapshot-лога телеметрии, сек (default: $TELEMETRY_LOG_INTERVAL_SEC или 1.0)",
+    )
+    p.add_argument(
+        "--telemetry-stale-sec",
+        type=float,
+        default=float(os.environ.get("TELEMETRY_STALE_SEC", DEFAULT_STALE_SEC)),
+        help="порог 'устаревшей' телеметрии, сек (default: $TELEMETRY_STALE_SEC или 5.0)",
     )
     p.add_argument("--log-level", default="INFO")
     args = p.parse_args()
@@ -377,21 +487,32 @@ def main() -> int:
         log.error("invalid --peer %r: %s", args.peer, e)
         return 1
 
+    listen_port = _resolve_listen_port(args.listen_port, peer[1])
     config = _load_channel_map(args.channel_map, log)
-
     period = 1.0 / args.rate
+
     log.info(
-        "device=%s peer=%s:%d rate=%d Hz (period=%.4f s) channel_map=%s",
+        "device=%s peer=%s:%d listen=:%d rate=%d Hz channel_map=%s telemetry_log=%.2fs stale=%.2fs",
         args.device,
         peer[0],
         peer[1],
+        listen_port,
         args.rate,
-        period,
         args.channel_map if config is not None else "(legacy linear)",
+        args.telemetry_log_interval,
+        args.telemetry_stale_sec,
     )
 
-    sock = open_udp_send()
+    sock = open_udp_bidir(listen_port)
     state = JoystickState(config=config, channels=_failsafe_channels(config))
+    telemetry_state = TelemetryState()
+    parser = CrsfTelemetryParser(log)
+    telemetry_logger = TelemetryLogger(
+        telemetry_state,
+        log,
+        interval_s=args.telemetry_log_interval,
+        stale_s=args.telemetry_stale_sec,
+    )
 
     stop = {"flag": False}
 
@@ -402,31 +523,55 @@ def main() -> int:
     signal.signal(signal.SIGINT, on_sig)
 
     tx_bytes = 0
+    rx_bytes = 0
     last_stat = time.monotonic()
     next_tick = time.monotonic() + period
+    sock_fd = sock.fileno()
 
     while not stop["flag"]:
         now = time.monotonic()
         _try_reopen(state, args.device, log, now)
 
         timeout = max(0.0, next_tick - now)
-        fds = [state.device.fd] if state.device is not None else []
+        fds_r: list[int] = [sock_fd]
+        if state.device is not None:
+            fds_r.append(state.device.fd)
+
         try:
-            select.select(fds, [], [], timeout)
+            readable, _, _ = select.select(fds_r, [], [], timeout)
         except (InterruptedError, OSError):
             continue
 
         now = time.monotonic()
+
+        # RX: drain в первую очередь — телеметрия не ждёт tick'а и продолжает
+        # идти, даже если evdev отвалился (поле дебага в HANDOFF).
+        if sock_fd in readable:
+            rx_bytes += _drain_telemetry_rx(sock, parser, telemetry_state, log, now)
+
+        # evdev events: если ready, сливаем сразу (отвал → state.device=None,
+        # следующий _try_reopen возьмёт на себя реконнект).
+        if state.device is not None and state.device.fd in readable:
+            _drain_evdev(state, log)
+
+        # TX: scheduled tick. _tick дренит ещё раз (no-op если только что слили)
+        # и шлёт CRSF. При state.device is None возвращает 0 — FC уходит в failsafe.
         if now >= next_tick:
             tx_bytes += _tick(state, sock, peer, log)
             next_tick += period
-            # Если отстали (например, заснули) — не копим долг, ресинкаемся.
             if next_tick < now:
                 next_tick = now + period
 
+        telemetry_logger.maybe_log(now)
+
         if now - last_stat >= STAT_PERIOD_S:
-            log.info("udp tx=%d B/s", int(tx_bytes / STAT_PERIOD_S))
+            log.info(
+                "udp tx=%d B/s  rx=%d B/s",
+                int(tx_bytes / STAT_PERIOD_S),
+                int(rx_bytes / STAT_PERIOD_S),
+            )
             tx_bytes = 0
+            rx_bytes = 0
             last_stat = now
 
     log.info("shutting down")

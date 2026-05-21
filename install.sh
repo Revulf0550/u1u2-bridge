@@ -166,6 +166,8 @@ DEVICE=/dev/input/event0
 PEER=$PEER_HOST:14550
 RATE_HZ=250
 CHANNEL_MAP_PATH=/etc/u1u2-bridge/channels.toml
+TELEMETRY_LOG_INTERVAL_SEC=1.0
+TELEMETRY_STALE_SEC=5.0
 EOF
   # Idempotent копирование дефолтного channel-map. НЕ перезаписываем — иначе
   # затрём пользовательскую калибровку при повторном install.sh.
