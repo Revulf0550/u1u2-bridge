@@ -162,7 +162,7 @@ fi
 if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
   # u1-drone: только joystick.env, crsf-tx*.env не нужны
   cat > /etc/u1u2-bridge/joystick.env <<EOF
-DEVICE=/dev/input/js0
+DEVICE=/dev/input/event0
 PEER=$PEER_HOST:14550
 RATE_HZ=250
 EOF

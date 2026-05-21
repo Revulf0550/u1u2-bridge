@@ -54,6 +54,10 @@ files = ["common", "tests"]
 module = ["tests.*"]
 disallow_untyped_decorators = false
 
+[[tool.mypy.overrides]]
+module = ["evdev", "evdev.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-x --ff -v"

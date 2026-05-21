@@ -10,7 +10,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/u1u2-bridge/joystick.env
-ExecStart=/usr/bin/python3 /opt/u1u2-bridge/common/joystick_to_crsf.py \
+# Запускаем как модуль (-m), чтобы работал `from common.crsf import ...`.
+WorkingDirectory=/opt/u1u2-bridge
+ExecStart=/usr/bin/python3 -m common.joystick_to_crsf \
   --device $DEVICE \
   --peer $PEER \
   --rate $RATE_HZ
