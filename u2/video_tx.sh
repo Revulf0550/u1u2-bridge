@@ -24,7 +24,7 @@ PEER_PORT="${PEER_PORT:-5600}"
 
 exec gst-launch-1.0 -v \
   v4l2src device="$DEV" io-mode=4 ! \
-  image/jpeg,width="$WIDTH",height="$HEIGHT",framerate="$FPS/1" ! \
+  "image/jpeg,width=$WIDTH,height=$HEIGHT,framerate=$FPS/1" ! \
   jpegdec ! \
   videoconvert ! \
   video/x-raw,format=NV12 ! \

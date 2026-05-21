@@ -32,22 +32,23 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# shellcheck — все .sh в корне репо. Не рекурсивно: u1/*.sh и u2/*.sh —
-# тонкие gst-launch обёртки с известными SC2140 предупреждениями, их
-# отдельно лечить в Step 3.4 (video pipeline polish), а не сейчас.
-Write-Host "`n[5/5] shellcheck (root .sh)..." -ForegroundColor Cyan
+# shellcheck — все .sh в репо (root + u1/ + u2/). Рекурсивно через Get-ChildItem -Recurse.
+Write-Host "`n[5/5] shellcheck (all .sh)..." -ForegroundColor Cyan
 $shCmd = Get-Command shellcheck -ErrorAction SilentlyContinue
 if (-not $shCmd) {
     Write-Host "[FAIL] shellcheck not on PATH." -ForegroundColor Red
     Write-Host "       Установить:  winget install --id koalaman.shellcheck" -ForegroundColor Yellow
     exit 1
 }
-$rootScripts = Get-ChildItem -Path . -Filter *.sh -File | Select-Object -ExpandProperty Name
-if (-not $rootScripts) {
-    Write-Host "[WARN] нет .sh в корне репо — пропускаю" -ForegroundColor Yellow
+# Исключаем .venv (если когда-то туда попадут чужие .sh) — путь нормализуем через FullName.
+$scripts = Get-ChildItem -Path . -Filter *.sh -File -Recurse |
+    Where-Object { $_.FullName -notmatch '\\\.venv\\' } |
+    ForEach-Object { Resolve-Path -Relative $_.FullName }
+if (-not $scripts) {
+    Write-Host "[WARN] нет .sh в репо — пропускаю" -ForegroundColor Yellow
 } else {
-    Write-Host ("       checking: " + ($rootScripts -join ", "))
-    & shellcheck @rootScripts
+    Write-Host ("       checking: " + ($scripts -join ", "))
+    & shellcheck @scripts
     if ($LASTEXITCODE -ne 0) {
         Write-Host "`n[FAIL] Shellcheck failed" -ForegroundColor Red
         exit 1
