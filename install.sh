@@ -16,9 +16,13 @@
 # зависит от модели платы: `end0` на Pi 5, `enP3p49s0` на Pi 5 Max.
 # Переопределить вручную: IFACE=eth0 sudo ./install.sh u2
 #
+# UDEV-правила для адаптеров регистрируются ОТДЕЛЬНЫМ скриптом после
+# физического подключения адаптеров:  sudo ./setup_udev.sh
+# (install.sh больше не пишет placeholder-rules — это упрощает обновление
+#  при пересборке адаптеров: меняй только setup_udev.sh, install.sh не
+#  трогаем.)
+#
 # Опциональные env (для bench / VPN-фазы):
-#   WAVESHARE_SERIAL_1=5A98051690  # серийник адаптера для CRSF1 udev SYMLINK
-#   WAVESHARE_SERIAL_2=...         # серийник для CRSF2
 #   PEER_IP_OVERRIDE=10.8.0.4      # перенаправить PEER в env-файлах на VPN
 #                                  # (вместо локального 192.168.1.x)
 #   SKIP_NETPLAN=1                 # не трогать netplan (сеть уже настроена)
@@ -193,44 +197,21 @@ PEER=$PEER_HOST:14551
 EOF
 fi
 
-# --- 8. udev-правила: стабильные имена RS485-адаптеров ------------------------
-# Waveshare USB-TO-RS485 (B) на чипе CH343G — vendor 1a86, product 55d3,
-# драйвер cdc_acm. Устройство приходит как /dev/ttyACMx (не /dev/ttyUSBx).
-#
-# Серийники узнавать так:
-#   udevadm info -a /dev/ttyACM0 | grep -m1 'ATTRS{serial}'
-# и передавать в install.sh через env:
-#   WAVESHARE_SERIAL_1=5A98051690 WAVESHARE_SERIAL_2=... sudo ./install.sh u2
+# --- 8. udev-правила для адаптеров ------------------------------------------
+# Правила теперь генерируются отдельным интерактивным скриптом setup_udev.sh
+# по реальным серийникам подключённых адаптеров. Здесь — только напоминание.
 if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
-  echo "==> drone-u1: пропускаем udev-правила (UART-адаптеров нет)"
+  echo "==> drone-u1: UART-адаптеров нет, setup_udev.sh не нужен"
 else
-  WAVESHARE_SERIAL_1="${WAVESHARE_SERIAL_1:-REPLACE_WITH_SERIAL_1}"
-  WAVESHARE_SERIAL_2="${WAVESHARE_SERIAL_2:-REPLACE_WITH_SERIAL_2}"
-
-  cat > /etc/udev/rules.d/90-u1u2-uart.rules <<EOF
-# Waveshare USB-TO-RS485 (B) на CH343G (1a86:55d3) — драйвер cdc_acm,
-# устройство /dev/ttyACMx, не /dev/ttyUSBx.
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", \\
-  ATTRS{serial}=="$WAVESHARE_SERIAL_1", SYMLINK+="ttyACM-CRSF1"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", \\
-  ATTRS{serial}=="$WAVESHARE_SERIAL_2", SYMLINK+="ttyACM-CRSF2"
-EOF
-  udevadm control --reload || true
-  udevadm trigger --subsystem-match=tty --action=change || true
-
-  if [[ "$WAVESHARE_SERIAL_1" == "REPLACE_WITH_SERIAL_1" ]]; then
+  if [[ ! -e /etc/udev/rules.d/90-u1u2-uart.rules ]]; then
     echo
-    echo "Info: WAVESHARE_SERIAL_1 не задан — /dev/ttyACM-CRSF1 не появится"
-    echo "      (норма для бенча с одним адаптером). Когда подключите CRSF1:"
-    echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
-    echo "        WAVESHARE_SERIAL_1=<sn> sudo ./install.sh $ROLE"
-  fi
-  if [[ "$WAVESHARE_SERIAL_2" == "REPLACE_WITH_SERIAL_2" ]]; then
-    echo
-    echo "Info: WAVESHARE_SERIAL_2 не задан — /dev/ttyACM-CRSF2 не появится"
-    echo "      (норма для бенча с одним адаптером). Когда подключите CRSF2:"
-    echo "        udevadm info -a /dev/ttyACM<N> | grep -m1 ATTRS{serial}"
-    echo "        WAVESHARE_SERIAL_2=<sn> sudo ./install.sh $ROLE"
+    echo "==> udev-правила для адаптеров ещё не созданы."
+    echo "    После физического подключения адаптеров:"
+    echo "        sudo $REPO/setup_udev.sh"
+    echo "    Без этого /dev/ttyACM-CRSF1/2 не появятся, и crsf-bridge@tx*"
+    echo "    будет крутиться в Restart-loop."
+  else
+    echo "==> udev-правила уже на месте (/etc/udev/rules.d/90-u1u2-uart.rules)"
   fi
 fi
 

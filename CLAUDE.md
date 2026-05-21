@@ -116,6 +116,8 @@
 | Что | Команда |
 |---|---|
 | Установить (роль u1 или u2) | `sudo ./install.sh u1` |
+| Зарегистрировать UART-адаптеры в udev (после физ. подключения) | `sudo ./setup_udev.sh` |
+| Постдеплой smoke-test | `sudo ./smoke_test.sh u1` (или `u2`) |
 | Статус CRSF-моста | `systemctl status crsf-bridge@tx1` |
 | Логи CRSF live | `journalctl -u crsf-bridge@tx1 -f` |
 | Статус видео | `systemctl status video-tx` (У2) или `video-rx` (У1) |
