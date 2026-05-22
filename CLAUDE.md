@@ -150,6 +150,36 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-05-22 (late) · UART7 на Pi 5 Max архитектурно занят Bluetooth (AP6611)
+
+После полного штатного reboot с overlay m1 loopback на пинах 29/38 показывает `in_waiting=0`, хотя `pinmux-pins` подтверждает привязку и `/dev/ttyS7` пишется без timeout. Причина: on-board Bluetooth-чип AP6611 штатно подключён к UART7 (m0-раскладка), служба `ap6611s-bluetooth.service` поднимает `brcm_patchram_plus` и держит `/dev/ttyS7` открытым. Overlay m1 переключает physical pinmux на пины 29/38, BT-чип становится недоступен, но патчер зависает и продолжает захват порта — наш Python-код тоже открывает порт, два клиента на одном UART-контроллере → конфликт. Race condition: первый тест после bringup может пройти (BT не успел захватить), штатный ребут — нет.
+
+**Правило:** на платах RK3588 с on-board BT через UART (Pi 5 Max, Plus и подобных), прежде чем переназначать тот же UART через overlay — обязательно `systemctl disable --now + mask` для `bluetooth.service` и платформенного `*-bluetooth.service` (на Pi 5 Max — `ap6611s-bluetooth.service`).
+
+**Проверка:** `sudo lsof /dev/ttyS7` сразу после ребута возвращает пусто; `systemctl is-active bluetooth.service ap6611s-bluetooth.service` показывает `inactive`. Полный контекст и команды восстановления — `docs/handoff/2026-05-22-late-uart7-bringup-complete.md`.
+
+---
+
+### 2026-05-22 (late) · `_BOOT_PATH=""` на joshua-riek ломает относительный `U_BOOT_FDT_OVERLAYS_DIR`
+
+При попытке прописать persistent overlay через `U_BOOT_FDT_OVERLAYS_DIR="overlays/"` в `/etc/default/u-boot` (как в дефолтном шаблоне) скрипт `u-boot-update` тихо пропускает `fdtoverlays` — нет ошибки, в `extlinux.conf` остаётся только `fdtdir`. Причина: на joshua-riek образах `/boot` лежит на той же FS что и `/` (нет отдельной партиции), поэтому `u-boot-update` ставит `_BOOT_PATH=""`, и проверка `[ -f "${_BOOT_PATH}/${overlays_dir}/${dtbo}" ]` превращается в `[ -f "/overlays/..." ]` — путь от корня FS, где dtbo нет.
+
+**Правило:** на joshua-riek (и любом образе с merged /boot+/) использовать **абсолютный** `U_BOOT_FDT_OVERLAYS_DIR="/lib/firmware/"` и `U_BOOT_FDT_OVERLAYS` относительно `<kernel-version>/` подкаталога — тогда `u-boot-update` подставит актуальный `_VERSION` и dtbo обновится автоматически при апгрейде ядра.
+
+**Проверка:** после `sudo u-boot-update` команда `grep fdtoverlays /boot/extlinux/extlinux.conf` под label `l0` показывает строку с абсолютным путём `/lib/firmware/<kernel>/.../*.dtbo`. Пусто → путь относительный или dtbo нет в `/lib/firmware/<kernel>/`. Полный разбор и TL;DR-команды — `docs/handoff/2026-05-22-late-uart7-bringup-complete.md`.
+
+---
+
+### 2026-05-22 (late) · Dupont-перемычки: подозревай контакт ПЕРВЫМ при странном loopback
+
+В сессии bringup UART7 два независимых случая ложно-отрицательного loopback (overlay m2 на пинах 24/26 и overlay m1 на 29/38) каждый раз заставляли диагностировать программу — pinmux, скорости, права, race conditions — теряя часы. В обоих случаях виновник оказывался в перемычке: дешёвые Dupont female-female имеют плохой обжим, контакт пропадает при сгибе. Признаки: `in_waiting >> ожидание` + мусорные байты = RX плавает, ловит наводку 50 Гц; `in_waiting=0` полная тишина = TX в idle HIGH, RX тоже HIGH, наводок нет.
+
+**Правило:** если loopback не проходит — **первое подозрение перемычка**, не программа. Прежде чем лезть в pinmux/скорости/драйверы — проверить контакт визуально и заменить перемычку на другую.
+
+**Проверка:** "тест пальцем" — снять перемычку, открыть UART на пассивное чтение, прикоснуться пальцем к RX-пину. Живой RX за 5 секунд набирает десятки/сотни байт мусора от наводки 50 Гц через тело-антенну. Если 0 — проблема в программе или железе платы, не в перемычке.
+
+---
+
 ### 2026-05-22 · UART7 на Orange Pi 5 Max работает через overlay m1, не m2
 
 На Orange Pi 5 Max (kernel 6.1.0-1025-rockchip, joshua-riek Ubuntu 24.04) overlay `rk3588-uart7-m2.dtbo` активирует ноду `serial@feba0000`, но RX-пин остаётся `GPIO UNCLAIMED` — loopback не проходит ни на 420 000, ни на 9600 бод. Рабочий вариант — `rk3588-uart7-m1.dtbo`, физические пины 29 (TX) и 38 (RX), `pinmux-pins` подтверждает привязку `gpio3-16/17`. Подключение overlay через `U_BOOT_FDT_OVERLAYS` в `/etc/default/u-boot` молча игнорируется текущей версией `u-boot-menu`, пришлось править `/boot/extlinux/extlinux.conf` руками (правка помечена как auto-generated — открытый риск потери при обновлении ядра, см. Chunk D в HANDOFF).
