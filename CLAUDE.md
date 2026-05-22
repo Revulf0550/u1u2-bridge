@@ -150,6 +150,46 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-05-22 (evening) · Не верить шёлкографии PCB без проверки документацией
+
+На плате Ranger Micro есть сервисные пятаки `32_TX` / `32_RX`. По логике (имя + наличие в открытом доступе) они выглядят как «чистый неинвертированный UART к ESP32». На деле — оказалось, что ELRS firmware настраивает этот UART в режим `UART_INVERTED=true` (default для совместимости с радиостанциями типа FrSky QX7, TBS Tango 2, RadioMaster TX16S). Шёлкография говорит «вот UART ESP32», но **не говорит** «инвертированный или нет». Результат — припаялись правильно (electrically доказано через TX-spam), но LED модуля не реагирует на наш неинвертированный CRSF.
+
+**Правило:** перед пайкой к сервисным пятакам ELRS / TBS Crossfire / R9 и других open-source RF-модулей — обязательно проверить в target-файле прошивки (на GitHub) что firmware ожидает на этом UART: invert или нет, full-duplex или half. То же касается debug-vs-CRSF UART: пятак может быть `serial_rx`/`serial_tx` для CRSF, а может быть UART0 ESP32 (общий с CP2102 для прошивки).
+
+**Проверка:** GitHub-путь `ExpressLRS/ExpressLRS/src/hardware/TX/Radiomaster_<Module>_TX/` — там JSON/`.h` с `serial_rx`, `serial_tx`, `uart_invert`, `serial_half_duplex`. Полный контекст блокера — `docs/handoff/2026-05-22-evening-uart-invert-blocker.md`.
+
+---
+
+### 2026-05-22 (evening) · TX-spam + мультиметр DC = быстрый тест целостности 3.3V UART
+
+Когда нужно проверить «доходит ли сигнал OPi UART до пятака приёмника после пайки» без осциллографа и без ответа от противоположной стороны: послать с OPi непрерывный байт-паттерн с большим количеством переходов (`b'\xAA' * 4096` в цикле write+flush), мерять DC-напряжение на целевом пятаке относительно GND, сравнить idle (без write) и spam (во время write). На 3.3V логике idle UART ≈ 3.2–3.3V (linе in idle high), на быстро меняющемся сигнале мультиметр DC показывает 0–2V среднее (зависит от duty cycle).
+
+**Правило:** разница > 1V между idle и spam = OPi TX драйвит линию, провод имеет электрический контакт до пятака. Это НЕ подтверждает что сигнал корректно декодируется на той стороне (см. UART_INVERTED-блокер) — только физическую связь. Дешёвый sanity-test перед тем, как лезть в логические причины «нет ответа».
+
+**Проверка:** одна цифра idle, одна spam, разница в одной точке (32_RX или RX-сторона цепи). Если разница близка к 0 — провод оборван, плохая пайка или GPIO не драйвит (sysfs ноды не активны, overlay не загрузился).
+
+---
+
+### 2026-05-22 (evening) · `stty` не поддерживает нестандартные baudrate (420 000 для CRSF)
+
+CRSF использует 420 000 бод — нестандартная скорость, не входящая в POSIX-таблицу `stty`. Стандартный `stty -F /dev/ttyS7 420000 raw -echo` падает с `invalid argument '420000'` и не настраивает порт. Linux в принципе поддерживает arbitrary baudrate через `termios2` ioctl, но `stty` им не пользуется.
+
+**Правило:** для нестандартных baudrate (включая 420k CRSF) использовать pyserial — она внутри вызывает `termios2`. `serial.Serial(port, 420000)` работает там, где `stty 420000` падает.
+
+**Проверка:** `python3 -c "import serial; s=serial.Serial('/dev/ttyS7', 420000); print('ok'); s.close()"` печатает `ok` без exception.
+
+---
+
+### 2026-05-22 (evening) · `sudo python3 -c "..."` + запись в `/tmp` = PermissionError
+
+При попытке `sudo python3 -c "...open('/tmp/file.bin','wb').write(data)"` падает `PermissionError: [Errno 13] Permission denied: '/tmp/file.bin'` даже когда процесс под root. Причина — AppArmor sandbox профиль для Python на Ubuntu 24.04 от joshua-riek (snap или дистрибутивный hardening): запись в `/tmp` из sandboxed Python заблокирована, несмотря на root-uid.
+
+**Правило:** при необходимости сохранить бинарь через `sudo python3 -c "..."` — писать в `sys.stdout.buffer.write(data)` внутри Python, redirect `> ~/file.bin` снаружи sudo. Тогда файл создаёт shell от имени пользователя, AppArmor не вмешивается.
+
+**Проверка:** `sudo python3 -c "import sys; sys.stdout.buffer.write(b'test')" > ~/test.bin && ls -la ~/test.bin` — файл создан с UID пользователя, не root.
+
+---
+
 ### 2026-05-22 (late) · UART7 на Pi 5 Max архитектурно занят Bluetooth (AP6611)
 
 После полного штатного reboot с overlay m1 loopback на пинах 29/38 показывает `in_waiting=0`, хотя `pinmux-pins` подтверждает привязку и `/dev/ttyS7` пишется без timeout. Причина: on-board Bluetooth-чип AP6611 штатно подключён к UART7 (m0-раскладка), служба `ap6611s-bluetooth.service` поднимает `brcm_patchram_plus` и держит `/dev/ttyS7` открытым. Overlay m1 переключает physical pinmux на пины 29/38, BT-чип становится недоступен, но патчер зависает и продолжает захват порта — наш Python-код тоже открывает порт, два клиента на одном UART-контроллере → конфликт. Race condition: первый тест после bringup может пройти (BT не успел захватить), штатный ребут — нет.
