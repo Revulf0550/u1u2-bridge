@@ -78,6 +78,54 @@ if [[ "$MODE" == "bench" ]]; then
   echo "==> RKMPP encoder available"
 fi
 
+# --- 2b. UART7 setup (только для роли u2) ------------------------------------
+# Автоматизирует три ручных шага из bringup-сессии 2026-05-22 (см.
+# docs/handoff/2026-05-22-late-uart7-bringup-complete.md, секция TL;DR):
+#   - регистрация overlay m1 через /etc/default/u-boot (Lesson 2: _BOOT_PATH=""
+#     quirk на joshua-riek — путь должен быть абсолютным),
+#   - mask BT-сервисов, иначе AP6611-стек через brcm_patchram_plus захватит
+#     /dev/ttyS7 (Lesson 1).
+# Idempotent: маркер-строка "# u1u2-bridge UART7" в /etc/default/u-boot и
+# проверка is-enabled=masked для сервисов. UART7_CHANGED=1 ставится только
+# если реально что-то поменялось — тогда в конце скрипта печатается
+# REBOOT REQUIRED.
+UART7_CHANGED=0
+if [[ "$ROLE" == "u2" ]]; then
+  if ! command -v u-boot-update &>/dev/null; then
+    echo "!! u-boot-update not found — not a joshua-riek image?" >&2
+    exit 1
+  fi
+
+  if ! grep -qF "# u1u2-bridge UART7" /etc/default/u-boot; then
+    cat >> /etc/default/u-boot <<'EOF'
+
+# u1u2-bridge UART7 on pins 29/38 (TX/RX) via overlay m1.
+# См. docs/handoff/2026-05-22-late-uart7-bringup-complete.md (Lesson 2)
+U_BOOT_FDT_OVERLAYS_DIR="/lib/firmware/"
+U_BOOT_FDT_OVERLAYS="device-tree/rockchip/overlay/rk3588-uart7-m1.dtbo"
+EOF
+    u-boot-update
+    UART7_CHANGED=1
+    echo "==> UART7 overlay registered in /etc/default/u-boot"
+  else
+    echo "==> UART7 overlay already configured in /etc/default/u-boot"
+  fi
+
+  for svc in bluetooth.service ap6611s-bluetooth.service; do
+    if ! systemctl list-unit-files "$svc" 2>/dev/null | grep -qE "^${svc}\s"; then
+      continue
+    fi
+    state="$(systemctl is-enabled "$svc" 2>/dev/null || echo "")"
+    if [[ "$state" == "masked" ]]; then
+      continue
+    fi
+    systemctl disable --now "$svc" 2>/dev/null || true
+    systemctl mask "$svc" 2>/dev/null || true
+    UART7_CHANGED=1
+    echo "==> $svc disabled and masked"
+  done
+fi
+
 # --- 3. определение сетевого интерфейса --------------------------------------
 # Если IFACE задан явно — используем его. Иначе берём первый не-lo интерфейс
 # в состоянии UP (это отсекает wlan/usb-eth, которые поднялись но не подключены).
@@ -272,5 +320,10 @@ if [[ -z "${SKIP_VIDEO:-}" ]]; then
   else
     echo "   journalctl -u video-rx -f --since '1 min ago'"
   fi
+fi
+if [[ "$UART7_CHANGED" == "1" ]]; then
+  echo
+  echo "!! ВНИМАНИЕ: внесены изменения в /etc/default/u-boot или BT-сервисы."
+  echo "!! Для активации UART7 на пинах 29/38 — ТРЕБУЕТСЯ REBOOT:  sudo reboot"
 fi
 echo "=========================================================================="
