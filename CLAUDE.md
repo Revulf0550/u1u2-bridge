@@ -150,6 +150,84 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-05-24 · CRSF 420k через single-NPN inverter не работает (storage time)
+
+Hardware-инвертор на одиночном BC548 для UART_INVERTED не валидируется ESP32 в ELRS Ranger Micro при 420000 baud. Симптом: модуль уходит в config mode (поднимает WiFi `ExpressLRS TX`) через ~30-60 секунд после старта стрима. DC уровни корректные (B=2.8V, C=0.2V — точно как теоретически), но edges на 420k размытые из-за storage time транзистора в hard saturation. Расчёт: R1=2.2kΩ даёт ib=1.2mA при необходимом 3.5µA — over-drive в 340x → storage time вырастает с 225ns datasheet до 1-2µs, что 40-80% bit time 2.38µs на 420k.
+
+**Правило:** для UART > 230400 baud не использовать single-NPN inverter без speed-up cap или Baker clamp. Для дальнейших CRSF-каналов сразу брать 74HC14N или другой CMOS-инвертор.
+
+**Проверка:** статический замер DC inversion ничего не докажет на скоростях. Нужен либо осциллограф, либо end-to-end test с реальным потребителем (ESP32 UART receiver валидирует фреймы).
+
+---
+
+### 2026-05-24 · 74HC14N Schmitt-trigger как фикс UART invert на 420k
+
+Замена single-NPN на SN74HC14N (hex Schmitt-trigger inverter, DIP-14) полностью решила проблему. ESP32 валидирует CRSF, модуль остаётся в operating mode, бинд с дроном проходит. Использован один gate (pin 1 IN / pin 2 OUT), остальные 5 input pins (3, 5, 9, 11, 13) обязательно стянуты на GND через одну перемычку, output pins (4, 6, 8, 10, 12) — NC.
+
+Schmitt-trigger вариант выбран вместо обычного 74HC04, потому что гистерезис на входе (~0.4-1V) дополнительно чистит фронты от RK3588 UART и от паразитной capacitance проводов.
+
+Финальная схема в `docs/inverter-schematic.md`.
+
+**Правило:** для любого UART invert на скоростях ≥ 230400 — сразу 74HC14 (Schmitt). Не экономить на CMOS-IC ради «одного транзистора».
+
+**Проверка:** smoke-test через `hardware/crsf_smoke_test.py`. Критерий: 2+ минуты стрима без появления `ExpressLRS TX` WiFi сети.
+
+---
+
+### 2026-05-24 · UART_INVERTED в ELRS — ESP32-only hardware feature
+
+Опция `UART_INVERTED` в ExpressLRS firmware работает ИСКЛЮЧИТЕЛЬНО на ESP32-based TX-модулях. Это build-time define, который конфигурирует hardware UART periphery ESP32 для приёма inverted-level сигнала — на чипе. Не runtime-видимая опция, в WebUI её обычно нет.
+
+Для не-ESP32 модулей (STM32-based и т.д.) UART_INVERTED игнорируется, нужно делать hardware inversion снаружи.
+
+**Правило:** перед попыткой UART-связи с ELRS-модулем проверять, какой у него MCU и какая прошивка. Если ESP32 + master firmware с UART_INVERTED=on → нужен hardware inverter ИЛИ пересборка прошивки с UART_INVERTED=off.
+
+**Альтернатива hardware:** перепрошить ELRS через Configurator с снятой галкой "Invert TX". Тогда инвертор не нужен. В нашем проекте выбрали hardware-путь чтобы не трогать прошивку модуля.
+
+---
+
+### 2026-05-24 · ELRS таймаут config mode — 30-60 секунд без валидного CRSF
+
+После подачи питания ELRS Ranger Micro ждёт ~30-60 секунд валидный CRSF на UART. Если за это окно не получил — автоматически поднимает WiFi-сеть `ExpressLRS TX` для конфигурации. Это тот самый сигнал «CRSF не валидируется».
+
+Окно теста для отладки UART к модулю: после reset питания у тебя ~30 секунд чтобы запустить стрим. Если не успел — модуль уйдёт в config, надо передёргивать питание (red wire к pin 3 модуля на 3 секунды).
+
+**Правило:** тестовый процесс UART-моста к ELRS — это «передёрнул питание модуля → быстро стартанул стрим → жди 2 минуты для подтверждения». Если WiFi не появилась — успех.
+
+**Проверка:** телефон с открытым списком WiFi-сетей рядом во время теста.
+
+---
+
+### 2026-05-24 · Python time.sleep на Linux — 16ms granularity, не годится для UART
+
+Скрипт с `time.sleep(0.004)` для CRSF 250 Hz на самом деле выдавал 60 Hz — `sleep()` округляется scheduler'ом до системного тика (~16ms). Это вызвало false-positive в диагностике: думали что hardware-инвертор не справляется, а на самом деле packet rate был втрое ниже ожидаемого.
+
+Фикс — busy-wait через `time.perf_counter()`:
+```python
+next_tick = start + period
+while time.perf_counter() < next_tick:
+    pass
+next_tick += period
+```
+
+Съедает 1 ядро CPU, но даёт микросекундную точность.
+
+**Правило:** для любого периодического UART/network трафика с периодом < 20 ms — busy-wait, не `sleep`. Если CPU-расход важен — переписать на C или async с event loop, который умеет high-resolution timers.
+
+**Проверка:** в скрипте логировать реальный `rate = packets_count / elapsed_time` и сравнивать с target.
+
+---
+
+### 2026-05-24 · /tmp на u2-pi — tmpfs, очищается при ребуте
+
+Тестовые скрипты, сохранённые в `/tmp/` через heredoc (как привычно делать при отладке), пропадают после каждой перезагрузки. Постоянное место для hardware-тестов на u2-pi — `~/hardware/` (= `/home/ubuntu/hardware/`). Не требует sudo, переживает ребуты.
+
+**Правило:** тестовые скрипты, которые могут понадобиться повторно, не хранить в `/tmp/`. Сохранять в репозитории (`hardware/`) и деплоить на Pi через `scp` в `~/hardware/`.
+
+**Проверка:** после ребута Pi — `ls ~/hardware/` должен показывать сохранённые скрипты.
+
+---
+
 ### 2026-05-22 (late night) · WebUI ELRS — это одна прокручиваемая страница, не несколько
 
 В master-сборках ELRS (по крайней мере на commit 91b1ee) WebUI `http://10.0.0.1/` не имеет отдельной hardware-страницы. Есть три вкладки: **OPTIONS, WIFI, UPDATE**. Hardware-секция (CRSF Serial Pins, Radio Chip, Radio Power, и т.д.) находится **внизу OPTIONS-страницы** при прокрутке. Также там есть кнопки `UPLOAD target configuration` и `SAVE TARGET CONFIGURATION` для изменения pinout прямо через web.

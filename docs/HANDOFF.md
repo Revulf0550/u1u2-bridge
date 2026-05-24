@@ -80,6 +80,8 @@ u1u2-bridge/
 
 8. **udev-правила для стабильных имён UART.** USB↔RS485 адаптеры получают symlinks `/dev/ttyUSB-CRSF1`, `/dev/ttyUSB-CRSF2` через udev (по серийному номеру чипа) — иначе после ребута `/dev/ttyUSB0` и `ttyUSB1` могут поменяться местами и сервисы попадут на чужой адаптер.
 
+9. **Hardware inverter (74HC14N) между OPi UART TX и ELRS CRSF.** ELRS firmware (master 91b1ee) ожидает inverted UART (`UART_INVERTED=on`, ESP32-only hardware feature). Вместо пересборки прошивки используется SN74HC14N (hex Schmitt-trigger inverter, DIP-14) — один gate инвертирует TX-линию, Schmitt-trigger вход чистит фронты от RK3588 UART. Single-NPN (BC548) не работает на 420k baud из-за storage time. Финальная схема: [`docs/inverter-schematic.md`](inverter-schematic.md).
+
 ---
 
 ## 4. Файлы проекта
@@ -949,6 +951,7 @@ PEER_PORT=5600
   | u1-pi | CRSF1 | `5A7C185549` | `/dev/ttyACM-CRSF1` |
   | u1-pi | CRSF2 | `5A98058254` | `/dev/ttyACM-CRSF2` |
 - **`crsf_bridge.py` бенч-валидация на обеих Pi:** `--dry-run` ОК, auto-reconnect ОК, `INFO uart opened` появляется в логе после монтирования symlinks. Реального CRSF-трафика 420k бод ещё не было — будет при подключении ELRS-передатчиков.
+- **UART invert через 74HC14N** — собран, протестирован, end-to-end бинд с дроном проходит на u2-pi. OPi 5 Max UART7-M2 (pin 26) @ 420000 baud → SN74HC14N gate 1 → ELRS Ranger Micro. Smoke-test `hardware/crsf_smoke_test.py` подтверждает стабильный 250 Hz стрим без ухода модуля в config mode. Схема: `docs/inverter-schematic.md`, настройка UART: `docs/opi5max-uart7-setup.md`.
 - **CPE710:** в bench-фазе не используется — трафик между u1-pi и u2-pi идёт через WG-туннель к VPS. Локальный CPE710-link будет поднят на полевой фазе.
 - **Адаптеры CP2102 и CH340G** (из старых фото) **в проект не идут**, могут пригодиться для loopback bench-теста TX↔RX на одной Pi.
 
@@ -1029,6 +1032,8 @@ Auto-direction Waveshare на 420k в **одну** сторону — типич
 
 **Решение (вариант A+C):** документируем ограничение, TIOCSRS485 не вкладываемся (overhead на разработку + риск перешибать рабочее железо). `bench/loopback.py` module docstring дополнен секциями «Соответствие production» и «Limitations» (commit с этой правкой). Реальная валидация — при подключении ELRS Tx к Waveshare на u2-pi, см. §8 (следующий приоритет).
 
+**Обновление 2026-05-24:** для CRSF на 420k проблема edge speed решена через CMOS-инвертор (SN74HC14N). Для будущих CRSF-каналов и RS485 — сразу 74HC14N, не пытаться single-transistor.
+
 ### 7.2. Имя сетевого интерфейса в `install.sh`
 
 **Симптом:** `install.sh` hardcoded использует `end0` в netplan. На некоторых сборках Ubuntu/Armbian для RK3588 интерфейс может называться `eth0`, `enP3p49s0` или похоже.
@@ -1086,14 +1091,17 @@ udevadm info -a /dev/ttyACM<N> | grep -m1 'ATTRS{serial}'
 - ✅ Оба CRSF-моста `crsf-bridge@tx1/tx2` зелёные на обеих Pi с открытым UART
 - ✅ Bench/loopback диагностика (вечер): физика подтверждена raw тестом (6/6 × 1000/1000 байт), bench-скрипт исправлен 3 commit'ами, §7.1 закрыт документально
 
-**Следующий приоритет:** пункт 1 ниже — подключение ELRS Tx к Waveshare на u2-pi для реального CRSF-потока через `crsf_bridge.py`. Bench-тема закрыта, дальше — production-валидация.
+**Обновление 2026-05-24:**
 
-**К сделать:**
+1. ✅ **ЗАКРЫТО: UART invert к ELRS-модулю #1.** OPi 5 Max UART7-M2 (pin 26) → 74HC14N → ELRS Ranger Micro. End-to-end бинд с дроном проходит.
+2. **Сделать второй CRSF-канал** через ещё один gate того же 74HC14N — он 6-канальный, остались 5 свободных gates (пины 3-4, 5-6, 9-8, 11-10, 13-12). Нужно отцепить input pin от GND и завести на второй UART OPi.
+3. **Подключить второй ELRS-модуль.**
+4. **Тест в полёте** с реальным каналом управления (стики → дрон реагирует).
+5. **Видео-pipeline** (RX и TX) — отдельная ветка.
 
-1. **Подключить ELRS-передатчики** к Waveshare-адаптерам на u2-pi, реальный CRSF-трафик 420k бод через `crsf_bridge.py`. Проверить:
-   - Бод-rate stability при джиттере туннеля
-   - Потери в `journalctl -u crsf-bridge@tx1 -f` под нагрузкой
-   - One-way streaming (production data-flow, не bidirectional ping-pong — см. §7.1)
+**Ранее запланированное (приоритеты сохраняются):**
+
+1. ~~**Подключить ELRS-передатчики**~~ — закрыто для ELRS #1 (см. выше).
 
 2. **Гигиена секретов:** ротация WireGuard-ключей и PSK для u2-pi и u1-pi (засветились в чатах разработки). В wg-easy веб-UI у каждого пира «regenerate», скачать новый conf, заменить `/etc/wireguard/wg0.conf` на Pi, `sudo systemctl restart wg-quick@wg0`. ~5 минут на пир.
 
