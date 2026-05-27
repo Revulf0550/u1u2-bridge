@@ -510,6 +510,53 @@ CRSF использует 420 000 бод — нестандартная скор
 
 ---
 
+### 2026-05-27 · CRSF от Boxer JR-bay дошёл до дрона end-to-end
+
+Этап 1 закрыт: Boxer JR-bay pin 5 → SN74HC14N → CH340G → /dev/ttyUSB0 → crsf-bridge@p1 на u1-pi → UDP 14552 через WireGuard → crsf-bridge@elrs на u2-pi → /dev/ttyS7 → SN74HC14N → ELRS Ranger Micro → дрон бинднут, ARM работает. Поток 6500–6800 B/s, ровно соответствует CRSF RC_CHANNELS_PACKED @ 250 Hz (26 байт × 250 = 6500). Telemetry обратно физически отрезана (TX-провод CH340G не подключен) — это осознанный выбор, можно вернуть позже двусторонней проводкой через тот же SN74HC14N.
+
+**Правило:** при добавлении нового UART-канала повторять паттерн: env-файл в `/etc/u1u2-bridge/crsf-<name>.env` → UFW allow порт/udp с комментарием → `systemctl enable --now crsf-bridge@<name>.service` → проверить `journalctl` на наличие строк статистики `uart->udp` / `udp->uart`.
+
+**Проверка:** `journalctl -u crsf-bridge@<name>.service --since '30 sec ago' | grep -E 'uart->udp|udp->uart'`.
+
+---
+
+### 2026-05-27 · CH340G c SerialNumber=0 — udev по серийнику невозможен
+
+Конкретный экземпляр CH340G на u1-pi даёт `SerialNumber=0` в dmesg (`usb 1-1: New USB device strings: Mfr=0, Product=2, SerialNumber=0`). Это типичная картина для CH340G — серийник у этого чипа в EEPROM не программируется на заводе. Правило в HANDOFF `ATTRS{serial}=="REPLACE_WITH_SERIAL_1"` для такого устройства технически невозможно.
+
+**Правило:** Перед написанием udev-правила всегда проверяй `udevadm info -a /dev/ttyUSB0 | grep -m1 'ATTRS{serial}'`. Если серийник пустой или "0" — используй `KERNELS=="X-Y"` (USB port path) или мигрируй на CH343G/CP2102N/FT232. Для одного USB-UART на хосте можно вообще обойтись `/dev/ttyUSB0` напрямую в env-файле, пока второго не появилось.
+
+**Проверка:** `udevadm info -a /dev/ttyUSB0 | grep -m3 -E 'ATTRS\{(serial|idVendor|idProduct)\}'`.
+
+---
+
+### 2026-05-27 · stty в coreutils не поддерживает 420000 бод
+
+`sudo stty -F /dev/ttyUSB0 raw 420000 -echo` → `stty: invalid argument '420000'`. Coreutils stty знает только POSIX-стандартные бод-рейты (до 4000000 в новых версиях, но дискретно — 9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000, 921600, 1000000, 1152000, 1500000, 2000000, ...). 420000 — не в этом списке.
+
+**Правило:** для нестандартных бод (CRSF 420000, S.Bus 100000 inverted, SBUS2 100000) — никогда не пытайся через `stty`. Используй pyserial (`serial.Serial('/dev/ttyUSBx', 420000)`) или termios2 `BOTHER` напрямую. Pyserial умеет любую кастомную скорость через `BOTHER` под капотом на Linux.
+
+**Проверка одной строкой для снифа на любой нестандартной скорости:**
+sudo python3 -c "
+import serial, sys
+sys.stdout.buffer.write(serial.Serial('/dev/ttyUSB0', 420000, timeout=3).read(500))
+" | xxd | head -20
+
+---
+
+### 2026-05-27 · Ubuntu 24.04 sshd через socket activation — ssh.socket важнее ssh.service
+
+После загрузки u1-pi после долгого простоя `ssh ubuntu@10.8.0.6` дал `Connection refused`, при этом `ping 10.8.0.6` отвечал нормально. На самой Pi `systemctl status ssh` показал `ssh.service: disabled; inactive (dead)` и в TriggeredBy строке — `ssh.socket`. То есть в Ubuntu 24.04 sshd запускается через **socket activation**: реальный listener на :22 — это `ssh.socket`, а `ssh.service` стартует только когда socket принял соединение. Если `ssh.socket` не enabled на boot — порт 22 никто не слушает, отсюда RST.
+
+**Правило:** для надёжного sshd после ребута на Ubuntu 24+ всегда оба:
+sudo systemctl enable --now ssh.socket
+sudo systemctl enable ssh.service
+systemctl is-enabled ssh.socket ssh.service   # обе строки → "enabled"
+
+**Проверка после ребута:** `ss -ltn | grep ':22'` должен показать `LISTEN 0 ... 0.0.0.0:22`.
+
+---
+
 ### 2026-05-13 · `PackageNotFoundError: u1u2-bridge` при `importlib.metadata.version()`
 
 При планировании CLI-флага `--version` собирался использовать `importlib.metadata.version("u1u2-bridge")`, но проверка показала `PackageNotFoundError`: в `pyproject.toml` не было `[build-system]`, поэтому `uv sync` ставил только зависимости, а сам проект не устанавливался как distribution. Исправлено добавлением `[build-system] requires = ["hatchling"]` и `[tool.hatch.build.targets.wheel] packages = ["common"]`, после чего `uv sync` поставил `u1u2-bridge==0.1.0` editable.
