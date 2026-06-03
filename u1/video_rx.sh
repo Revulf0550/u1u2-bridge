@@ -2,29 +2,34 @@
 # /opt/u1u2-bridge/u1/video_rx.sh
 #
 # На У1 (Orange Pi 5):
-#   UDP RTP H.264 → RKMPP decode → fullscreen HDMI вывод через kmssink
+#   UDP RTP H.264 → RKMPP decode → fullscreen HDMI через cage+waylandsink.
 #
-# kmssink выводит напрямую в DRM/KMS, минуя композитор — самая короткая
-# цепочка для HDMI на Orange Pi 5.
+# kmssink НЕ работает на joshua-riek + RK3588 (VOP2 driver bugs:
+# `wait pd0 off timeout`, `unexpected power on pd5`). cage поднимает
+# минимальный headless Wayland-композитор, waylandsink рисует в него.
+# Стоит ~5–10 мс латенции против kmssink, но единственный рабочий путь
+# в текущем стеке. См. Lessons & Incidents 2026-06-03.
 #
-# Если очки аналоговые: ставим HDMI→CVBS конвертер (CX2262 и подобные)
-# между HDMI Orange Pi и входом MECH/VTX. В скрипте ничего не меняется.
+# Требует /run/user/0 (tmpfs, пересоздаётся через tmpfiles.d — см. install.sh).
 
 set -euo pipefail
 
 LISTEN_PORT="${LISTEN_PORT:-5600}"
+# 500 ms — под wg-через-интернет (RTT 180 мс). На CPE710 (3–7 мс) — снижать
+# до 30–50, это основной knob для glass-to-glass latency.
+JITTER_LATENCY="${JITTER_LATENCY:-500}"
 
-# Перед запуском убедитесь, что Orange Pi загрузился без X/wayland-композитора:
+# Перед запуском убедитесь, что Orange Pi загрузился без display-manager'а:
 #   sudo systemctl set-default multi-user.target
-# kmssink не уживается с Xorg/wayland, ему нужен прямой доступ к DRM.
+# cage берёт DRM-устройство монопольно.
 
-exec gst-launch-1.0 -v \
+exec env XDG_RUNTIME_DIR=/run/user/0 cage -- gst-launch-1.0 -v \
   udpsrc port="$LISTEN_PORT" \
     caps="application/x-rtp,encoding-name=H264,payload=96,clock-rate=90000" \
     buffer-size=2097152 ! \
-  rtpjitterbuffer latency=15 drop-on-latency=true do-lost=true ! \
+  rtpjitterbuffer latency="$JITTER_LATENCY" drop-on-latency=false do-lost=true ! \
   rtph264depay ! \
   h264parse ! \
   mppvideodec ! \
   videoconvert ! \
-  kmssink sync=false force-modesetting=true can-scale=true
+  waylandsink sync=false
