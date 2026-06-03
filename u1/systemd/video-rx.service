@@ -1,7 +1,7 @@
 # /etc/systemd/system/video-rx.service (на У1)
 
 [Unit]
-Description=Video RX (H.264 RTP -> HDMI)
+Description=Video RX (H.264 RTP -> HDMI via cage+waylandsink)
 After=network-online.target
 Wants=network-online.target
 Conflicts=display-manager.service
@@ -12,7 +12,6 @@ ExecStart=/opt/u1u2-bridge/u1/video_rx.sh
 Restart=always
 RestartSec=3
 Nice=-5
-# kmssink требует владения DRM-устройством
 Environment=GST_DEBUG=2
 
 [Install]

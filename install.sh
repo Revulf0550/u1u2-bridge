@@ -60,6 +60,7 @@ apt install -y \
   gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
   gstreamer1.0-plugins-ugly gstreamer1.0-libav \
   gstreamer1.0-rockchip1 \
+  cage \
   v4l-utils \
   wireguard wireguard-tools \
   curl git
@@ -271,10 +272,23 @@ if ! getent group dialout | grep -qw "${SUDO_USER:-ubuntu}"; then
   echo "   sudo usermod -aG dialout ${SUDO_USER:-ubuntu}  &&  logout/login"
 fi
 
-# --- 9. отключаем display-manager на У1 (kmssink требует tty) -----------------
+# --- 9. подготовка u1 для cage+waylandsink ------------------------------------
+# kmssink на joshua-riek + RK3588 сломан VOP2-багами (см. CLAUDE.md Lessons
+# 2026-06-03), вместо него — cage --> waylandsink. cage требует
+# XDG_RUNTIME_DIR=/run/user/0; /run/user — tmpfs, после ребута каталога нет,
+# video-rx упадёт. tmpfiles.d пересоздаёт при boot.
+# ВНИМАНИЕ: настройка проверена ручным запуском cage + gst-launch-1.0;
+# service-mode (`systemctl start video-rx`) на железе пока не подтверждён.
 if [[ "$ROLE" == "u1" && "$MODE" == "bench" ]]; then
   systemctl set-default multi-user.target
   systemctl disable --now gdm3 lightdm sddm 2>/dev/null || true
+
+  cat > /etc/tmpfiles.d/u1u2-bridge.conf <<'EOF'
+# /run/user/0 для cage в video-rx.service (waylandsink).
+d /run/user/0 0700 root root -
+EOF
+  systemd-tmpfiles --create /etc/tmpfiles.d/u1u2-bridge.conf >/dev/null
+  echo "==> u1: cage XDG_RUNTIME_DIR=/run/user/0 prepared via tmpfiles.d"
 fi
 
 # --- 10. ядро: увеличиваем UDP-буферы -----------------------------------------
