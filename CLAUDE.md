@@ -73,9 +73,9 @@
 ### Сеть — UDP и WireGuard
 
 - **UDP-порт на канал, peer-to-peer.** Каждый CRSF/CTRL канал — один UDP порт двунаправленно. RS485 half-duplex даёт гарантию, что обе стороны не передают одновременно.
-- **Адресация двухслойная.** Локально: `192.168.1.0/24` (CPE710 LAN). Туннель: `10.10.0.0/24` (WireGuard поверх). После полевых испытаний — переключить env-файлы с `192.168.1.x` на `10.10.0.x`.
-- **WireGuard `PersistentKeepalive = 15`** на клиентской стороне. Без него NAT-таблица CPE710 может протухать.
-- **MTU учтён в RTP.** `rtph264pay mtu=1400` — оставляем 100 байт на инкапсуляцию (Wi-Fi headers + WireGuard 60–100 байт overhead).
+- **Адресация двухслойная (проектная).** Локально: `192.168.1.0/24` (CPE710 LAN). Туннель: `10.10.0.0/24` (WireGuard поверх). После разворачивания CPE710 — env-файлы переключить с `192.168.1.x` на `10.10.0.x`. **Текущий bench-транспорт (2026-06-03):** CPE710 не развёрнут, стенд работает через домашний роутер `192.168.31.0/24` и интернет-WG (`10.8.0.0/24`). `install.sh` запускать с `SKIP_NETPLAN=1 PEER_IP_OVERRIDE=10.8.0.X`. См. Lessons & Incidents 2026-06-03.
+- **WireGuard `PersistentKeepalive = 15`** на клиентской стороне. Без него NAT-таблица протухает (для CPE710 — собственного NAT'а; для bench-WG через интернет — NAT'а домашнего роутера).
+- **MTU зависит от транспорта (env `MTU` в `video_tx.sh`).** Дефолт `rtph264pay mtu=1200` — под bench (wg через интернет, RTT 180 мс). Для CPE710 PtP (короткий линк, RTT 3–7 мс) поднимать до `1400` — оставляем 100 байт на Wi-Fi headers + WireGuard 60–100 байт overhead.
 
 ### Архитектурный roadmap для подключения пульта
 
@@ -90,16 +90,17 @@
 ### GStreamer — низкая латентность
 
 - **Только `mpph264enc` / `mppvideodec`** на Orange Pi 5 (аппаратный H.264 через VPU RK3588). Не `v4l2h264enc` (медленнее на 7–10 мс). Зависимость: пакет `gstreamer1.0-rockchip1` из репо joshua-riek.
-- **`profile=baseline`** (нет B-кадров), GOP=15 для быстрого recovery после потерь.
-- **`rtpjitterbuffer latency=15 drop-on-latency=true`** на приёмнике. Не больше 15 мс джиттера — теряем кадр, не ждём.
-- **`kmssink` для вывода на HDMI**, не `xvimagesink`/`waylandsink`. Минует композитор, режет 10–15 мс. Требует загрузки в `multi-user.target` (без graphical-target). `install.sh` это делает.
+- **`profile=66`** (Baseline, нет B-кадров) задаётся property энкодера, **не** capsfilter'ом `video/x-h264,profile=baseline` — последний роняет caps-негоциацию (mpph264enc отдаёт `Baseline` с заглавной, см. Lessons & Incidents 2026-06-03). GOP=15 для быстрого recovery после потерь.
+- **`rtpjitterbuffer latency=<env> drop-on-latency=false do-lost=true`** под транспорт. Дефолт `latency=500` в `video_rx.sh` (env `JITTER_LATENCY`) — под bench-WG через интернет (RTT 180 мс). Для CPE710 PtP (3–7 мс) снижать до 30–50 — это основной knob для glass-to-glass latency. `drop-on-latency=false`: пакеты приходят пачками, дропать поздние смысла нет.
+- **HDMI вывод через `cage + waylandsink sync=false`.** `kmssink` на joshua-riek + RK3588 сломан VOP2-багами (`wait pd0 off timeout`, `unexpected power on pd5`) — не использовать. cage — headless Wayland-композитор; `install.sh` разворачивает `/run/user/0` через `tmpfiles.d` и держит u1 на `multi-user.target` без display-manager'а.
+- **`v4l2src` без `io-mode=`.** Дефолт GStreamer (mmap) — самый совместимый. `io-mode=4` (userptr) известно ломается на дешёвых UVC (EasyCAP-клоны); ставить только при доказанном выигрыше латенции на конкретной модели грабера, не по умолчанию.
 - **`udpsink sync=false async=false`** — иначе GStreamer пытается синхронизировать по часам, добавляет задержку.
 
 ### Hardware и периферия
 
 - **udev-правила для стабильных имён USB-устройств.** `/dev/ttyUSB-CRSF1`, `/dev/ttyUSB-CRSF2` через `SYMLINK+=` по серийному номеру чипа. Никогда не использовать `/dev/ttyUSB0`/`ttyUSB1` в env-файлах — порядок меняется при перезагрузке.
 - **USB↔RS485 auto-direction.** Полагаемся на аппаратное переключение TX-detect (Waveshare на SP485EEN). Если на 420k бод не сработает — fallback на ручное управление через RTS + `fcntl.ioctl(TIOCSRS485)`. Открытый вопрос, см. `docs/HANDOFF.md` §7.1.
-- **Сетевой интерфейс Orange Pi 5 в Ubuntu от Joshua Riek — `end0`.** В Armbian может быть `eth0` или `enp1s0`. `install.sh` определяет имя автоматически через `ip -br link | awk '$1 != "lo" {print $1; exit}'`.
+- **Сетевой интерфейс Orange Pi 5 (joshua-riek) — `end0` на Pi 5, `enP3p49s0` на Pi 5 Max.** В Armbian может быть `eth0` или `enp1s0`. `install.sh` определяет имя автоматически через `ip -br link | awk '$1 != "lo" && $2 == "UP" {print $1; exit}'`. **Текущий стенд (2026-06-03):** u2-pi = Pi 5 Max, iface `enP3p49s0`.
 
 ### Embedded-надёжность (когда дойдём)
 
@@ -160,6 +161,86 @@
 >
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
+
+### 2026-06-03 · `! video/x-h264,profile=baseline` после `mpph264enc` вешает pipeline
+
+В `u2/video_tx.sh` capsfilter `video/x-h264,profile=baseline` стоял сразу после `mpph264enc`. Энкодер отдаёт caps с `profile=Baseline` (с заглавной), фильтр требует `baseline` (строчная) → caps-негоциация молча падает, pipeline переходит в PLAYING без ошибки, downstream-пады без caps, `udpsink` отправляет 0 пакетов. Две сессии ушли на ложные гипотезы (RKMPP завис, wg сломан, MTU, грабер сломан) пока не догадались убрать capsfilter.
+
+**Правило:** за `mpph264enc`/`mppvideodec` НЕ ставить жёсткий `video/x-h264,profile=...` capsfilter — профиль задаётся property энкодера (`profile=66`), capsfilter запрещён. Мета-правило: 0 пакетов на `udpsink` без ошибок в логе + downstream-пады без caps в `GST_DEBUG=4` → искать caps-разрыв в capsfilter перед синком, а не в сети.
+
+**Проверка:** `sudo tcpdump -i wg0 'udp port 5600' -c 20` на TX-стороне ловит пакеты ≤2 сек после старта pipeline. Если 0 пакетов и нет ошибок в логе — caps-разрыв перед udpsink.
+
+---
+
+### 2026-06-03 · «RKMPP-энкодер застрял после перезапусков» — ложный след
+
+Гипотеза «за 6+ перезапусков gst-launch RKMPP не освободил ресурсы, нужен reboot u2» отъела часы. После `sudo reboot u2` поведение идентичное: caps есть, пакетов нет. Реальная причина — `profile=Baseline` vs `baseline` capsfilter (см. соседний урок).
+
+**Правило:** RKMPP encoder/decoder не «застревают» между запусками `gst-launch`. Перед перезагрузкой или обвинением аппаратного кодека сначала проверить caps-негоциацию: `GST_DEBUG=4`, искать `not-negotiated` или отсутствие caps на src-падах downstream.
+
+**Проверка:** `GST_DEBUG=4 gst-launch-1.0 ... 2>&1 | grep -E 'not-negotiated|caps = NULL'` — при здоровом pipeline пусто.
+
+---
+
+### 2026-06-03 · kmssink не работает на joshua-riek + RK3588 (VOP2 driver bugs)
+
+`kmssink force-modesetting=true` под sudo на `multi-user.target` падает с ошибками VOP2-драйвера в dmesg: `*ERROR* wait pd0 off timeout`, `*ERROR* unexpected power on pd5`, `i2c read err`. Картинки на HDMI нет, `gst-launch` своих ошибок не пишет. Это противоречит ранее зафиксированному правилу «kmssink — самая короткая цепочка для HDMI на Orange Pi 5» в Architecture/GStreamer этого же файла; раздел Architecture обновлён в этом же коммите.
+
+**Правило:** на joshua-riek + RK3588 для HDMI-вывода — `cage -- gst-launch-1.0 ... ! waylandsink sync=false` (headless Wayland-композитор). `kmssink` не использовать до восстановления VOP2-драйвера в апстриме.
+
+**Проверка:** `journalctl -k --since '5 min ago' | grep -iE 'vop2|wait pd0 off timeout|unexpected power on pd5'` — пусто после старта video-rx.
+
+---
+
+### 2026-06-03 · `waylandsink` требует `sync=false` на высоколатентном линке
+
+При приёме RTP H.264 через wg-туннель (RTT 180 мс) `waylandsink` без `sync=false` дропает кадры — clock-sync считает все пакеты опоздавшими относительно PTS. С `sync=false` рендерит сразу по приходу декодированного буфера.
+
+**Правило:** `waylandsink sync=false` для любого realtime-приёма UDP RTP. `sync=true` оставлять только для воспроизведения локальных файлов, где PTS осмыслен относительно clock'а.
+
+**Проверка:** `GST_DEBUG=basesink:4 ./video_rx.sh 2>&1 | grep -ciE 'rendering too late|qos|drop'` = 0 за 10 секунд устойчивого приёма.
+
+---
+
+### 2026-06-03 · UVC-грабер Arkmicro 18ec:5555 — EasyCAP-клон, не MS2130
+
+В HANDOFF.md был записан MS2130 (HDMI capture). По факту подключён Arkmicro 18ec:5555 «USB2.0 PC CAMERA» — дешёвый EasyCAP-клон с CVBS-входом. Чип отдаёт только 640x480 MJPG, YUYV не поддерживает, `VIDIOC_ENUMSTD` возвращает `Inappropriate ioctl for device`, UVC Extension Controls для PAL/NTSC switch нет. Дефолт `VIDEO_W/H/FPS` в `video_tx.sh` стоял 720/576/25 (PAL) — давал `not-negotiated` без понятной ошибки.
+
+**Правило:** перед написанием GStreamer-pipeline под USB UVC — `lsusb` (vendor:product) + `v4l2-ctl --device=/dev/videoN --list-formats-ext` (реальные форматы и резолюшены). Дефолты в скриптах ставить по факту устройства, не по предполагаемой модели из BOM.
+
+**Проверка:** `v4l2-ctl --device=$VIDEO_DEV --list-formats-ext | grep -E 'Pixel Format|Size'` показывает поддерживаемые комбинации до запуска pipeline.
+
+---
+
+### 2026-06-03 · `io-mode=4` (userptr) в `v4l2src` убран превентивно
+
+В `video_tx.sh` стоял `v4l2src device=$DEV io-mode=4` исторически из MS2130-туториалов. Это известно проблемная опция для дешёвых UVC: userptr-buffers требуют от драйвера поддержки, которой у клонов EasyCAP часто нет. В live на Arkmicro 18ec:5555 с `io-mode=4` не проверяли — убрали в рамках стабилизации pipeline. Без `io-mode` рабочая цепочка собирается, кадры идут.
+
+**Правило:** не задавать `io-mode` у `v4l2src` без необходимости — пусть GStreamer выбирает по capabilities устройства (обычно mmap). `io-mode=4` (userptr) или `io-mode=2` (mmap) ставить только при доказанном выигрыше латенции на конкретной модели грабера.
+
+**Проверка:** `gst-launch-1.0 v4l2src device=$VIDEO_DEV num-buffers=10 ! fakesink` без `io-mode` отрабатывает за <1 сек.
+
+---
+
+### 2026-06-03 · `udpsrc.src caps = ...` в логе ≠ реально полученный пакет
+
+GStreamer печатает declared `caps = ...` для `udpsrc.src` сразу при переходе в `PLAYING`, **до** получения данных — это контракт элемента, не доказательство приёма. Видели лог `udpsrc.src caps = ... PAYLOAD=H264 ...`, считали что пакеты приходят — на самом деле было 0 пакетов на интерфейсе. По этому ложному следу несколько раз искали проблему ниже по pipeline (depayloader / decoder).
+
+**Правило:** при диагностике сетевых GStreamer-pipeline первый шаг — `tcpdump -i <iface> 'udp port <port>' -c 20` на обеих сторонах. Только после этого смотреть лог GStreamer. Declared caps в логе не означают, что данные реально приходят.
+
+**Проверка:** на TX и RX независимо `tcpdump -i wg0 'udp port 5600' -c 20` ловит пакеты ≤2 сек после старта pipeline. Только потом верить `udpsrc.src caps` в логе.
+
+---
+
+### 2026-06-03 · Фактический транспорт стенда ≠ install.sh-дизайн (192.168.1.x)
+
+Реальная конфигурация на 2026-06-03: u1-pi LAN `192.168.31.72` / wg `10.8.0.6`, u2-pi LAN `192.168.31.100` / wg `10.8.0.7`, iface `enP3p49s0` (Pi 5 Max), CPE710 PtP-мост ещё не развёрнут — трафик идёт через домашний роутер и интернет-WG-сервер (RTT 180 мс). `install.sh` всё ещё пишет `192.168.1.x` в netplan и env-файлы CRSF — это будущий CPE710-дизайн (Этап 3), не bug. Раздел Architecture/Сеть аннотирован в этом же коммите.
+
+**Правило:** в bench-фазе деплоить `install.sh` с `SKIP_NETPLAN=1 PEER_IP_OVERRIDE=10.8.0.X` (X — wg-адрес peer'а). Не пытаться «починить» 192.168.1.x в install.sh пока CPE710 не развёрнут. После разворачивания CPE710 — снять override, дефолты сработают как задумано.
+
+**Проверка:** `ip -br addr show enP3p49s0` и `wg show wg0` не должны содержать `192.168.1.x` в bench-фазе. После CPE710: `ping -i 0.2 192.168.1.X` (peer) отвечает <2 мс.
+
+---
 
 ### 2026-05-25 · Цвета линий на тёмной теме сливаются с фоном
 
