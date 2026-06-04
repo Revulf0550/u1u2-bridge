@@ -77,16 +77,24 @@ else
   fail "$VIDEO_UNIT НЕ активен (см. \`journalctl -u $VIDEO_UNIT -n 50\`)"
 fi
 
-section "udev symlinks"
+section "CRSF serial device"
 
-for n in 1 2; do
-  link="/dev/ttyACM-CRSF${n}"
-  if [[ -e "$link" ]]; then
-    pass "$link существует"
+# Имя устройства берём из env-файла моста, не хардкодим: железо разное по ролям —
+# u1: CH340 → /dev/ttyUSB0 (raw, без udev-symlink — CH340 даёт SerialNumber=0);
+# u2: /dev/ttyS7 (аппаратный UART7 RK3588, не USB — symlink неприменим).
+CRSF_ENV="/etc/u1u2-bridge/crsf-${CRSF_INST}.env"
+if [[ ! -f "$CRSF_ENV" ]]; then
+  fail "$CRSF_ENV не найден — install.sh не отработал?"
+else
+  SERIAL_DEV="$(awk -F= '/^SERIAL_DEV=/ {v=$2} END {print v}' "$CRSF_ENV")"
+  if [[ -z "$SERIAL_DEV" ]]; then
+    fail "SERIAL_DEV не задан в $CRSF_ENV"
+  elif [[ -e "$SERIAL_DEV" ]]; then
+    pass "$SERIAL_DEV существует (SERIAL_DEV из $CRSF_ENV)"
   else
-    fail "$link отсутствует — запусти \`sudo ./setup_udev.sh\` после подключения адаптеров"
+    fail "$SERIAL_DEV отсутствует — устройство не подключено / UART7 overlay не загружен (см. $CRSF_ENV)"
   fi
-done
+fi
 
 section "RKMPP (hardware H.264)"
 
