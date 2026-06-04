@@ -173,6 +173,16 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-06-04 · cage от root под systemd работает без VT/PAM-обвязки
+
+A2: проверяли, заведётся ли `video-rx.service` (cage+waylandsink) в service-mode на `multi-user.target`, где `getty@tty1` держит VT1, а графического seat0 нет. Минимальный юнит (точная копия рендера: `Type=simple` + `ExecStart=…cage -- gst-launch…`, `XDG_RUNTIME_DIR=/run/user/0`) стартовал и вывел картинку на HDMI. В журнале единственная ошибка `[libseat] logind.c: Could not get primary session for user: No data available` — НЕкритична: wlroots падает на builtin/direct backend и берёт DRM-master напрямую от root (`fuser /dev/dri/card0` показывает cage). `fgconsole` остаётся =1, но KMS-вывод cage перекрывает текстовую консоль. Ни `TTYPath`, ни `StandardInput=tty`, ни `PAMName=login`, ни `Conflicts=getty@tty1` не понадобились.
+
+**Правило:** на joshua-riek + RK3588 для headless cage под systemd достаточно минимального юнита от root с `XDG_RUNTIME_DIR=/run/user/0`. Ошибку `libseat logind: Could not get primary session` игнорировать (fallback на builtin backend). VT/PAM-обвязку добавлять только если экран чёрный/мусор/остаётся текстовая консоль — здесь не потребовалось.
+
+**Проверка:** после `systemctl start <cage-unit>` — `systemctl show <unit> -p NRestarts --value` = 0 (нет петли) И `sudo fuser -v /dev/dri/card0` показывает `cage` как держателя DRM-master. Картинку на HDMI подтверждать глазами (caps-негоциация `waylandsink` ≠ пиксели на экране, см. соседний урок про NV12).
+
+---
+
 ### 2026-06-04 · `waylandsink` не ест NV12 напрямую — `videoconvert` обязателен
 
 Микро-выигрыш «убрать `videoconvert` перед `waylandsink` в `video_rx.sh`» отметён: на live (`videotestsrc`) без него — чёрный экран. `mppvideodec` отдаёт `NV12`, но `waylandsink` согласует только `RGBx` (видно в `-v`: с `videoconvert` появляется `GstWaylandSink.sink caps … format=RGBx`, без него строки caps синка нет, при этом `not-negotiated` не печатается — тихий caps-разрыв). Не пробовать повторно.
