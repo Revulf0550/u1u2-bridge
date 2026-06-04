@@ -299,8 +299,10 @@ fi
 # 2026-06-03), вместо него — cage --> waylandsink. cage требует
 # XDG_RUNTIME_DIR=/run/user/0; /run/user — tmpfs, после ребута каталога нет,
 # video-rx упадёт. tmpfiles.d пересоздаёт при boot.
-# ВНИМАНИЕ: настройка проверена ручным запуском cage + gst-launch-1.0;
-# service-mode (`systemctl start video-rx`) на железе пока не подтверждён.
+# Service-mode подтверждён на железе 2026-06-04: cage от root под systemd берёт
+# DRM-master напрямую (libseat logind фейлится — нет seat0 — но wlroots падает
+# на builtin/direct backend), минимального юнита video-rx.service достаточно,
+# VT/PAM-обвязка не нужна. См. CLAUDE.md Lessons 2026-06-04.
 if [[ "$ROLE" == "u1" ]]; then
   systemctl set-default multi-user.target
   systemctl disable --now gdm3 lightdm sddm 2>/dev/null || true
