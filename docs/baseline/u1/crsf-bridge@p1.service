@@ -1,0 +1,34 @@
+# Снято вербатим: systemctl cat crsf-bridge@p1 на u1 (10.8.0.6), 2026-06-04.
+# Это инстанс ОБЩЕГО шаблона crsf-bridge@.service (версионируется в common/systemd/).
+# Инстанс @p1 различается только через EnvironmentFile crsf-p1.env. Снимок для отката.
+# ---
+# /etc/systemd/system/crsf-bridge@.service
+#
+# Шаблонный юнит. Параметризуется через имя инстанса:
+#   systemctl enable --now crsf-bridge@tx1.service
+#   systemctl enable --now crsf-bridge@tx2.service
+#
+# Конфиг для каждого инстанса лежит в /etc/u1u2-bridge/crsf-<имя>.env
+
+[Unit]
+Description=CRSF UART<->UDP bridge (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/u1u2-bridge/crsf-%i.env
+ExecStart=/usr/bin/python3 /opt/u1u2-bridge/common/crsf_bridge.py \
+  --serial $SERIAL_DEV \
+  --baud $BAUD \
+  --listen $LISTEN \
+  --peer $PEER
+Restart=always
+RestartSec=2
+# realtime-приоритет — CRSF чувствителен к джиттеру
+Nice=-10
+IOSchedulingClass=realtime
+IOSchedulingPriority=4
+
+[Install]
+WantedBy=multi-user.target
