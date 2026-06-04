@@ -140,15 +140,14 @@
 | Установить (роль u1 или u2) | `sudo ./install.sh u1` |
 | Зарегистрировать UART-адаптеры в udev (после физ. подключения) | `sudo ./setup_udev.sh` |
 | Постдеплой smoke-test | `sudo ./smoke_test.sh u1` (или `u2`) |
-| Статус CRSF-моста | `systemctl status crsf-bridge@tx1` |
-| Логи CRSF live | `journalctl -u crsf-bridge@tx1 -f` |
-| Логи CRSF P1 (от пульта) | `journalctl -u crsf-bridge@p1 -f` |
+| Статус CRSF-моста | `systemctl status crsf-bridge@p1` (u1) / `crsf-bridge@elrs` (u2) |
+| Логи CRSF live | `journalctl -u crsf-bridge@p1 -f` (u1) / `crsf-bridge@elrs -f` (u2) |
 | Статус видео | `systemctl status video-tx` (У2) или `video-rx` (У1) |
 | Тест локальной сети | `ping -i 0.2 192.168.1.20` |
 | Тест туннеля | `ping 10.10.0.2` (после WireGuard) |
 | Проверка RKMPP | `gst-inspect-1.0 mpph264enc` |
-| Preflight CRSF (без запуска моста) | `uv run python -m common.crsf_bridge --serial /dev/ttyUSB-CRSF1 --listen 0.0.0.0:14550 --peer 192.168.1.20:14550 --dry-run` |
-| Валидация env-файла(ов) CRSF | `uv run python -m common.crsf_bridge --check-config /etc/u1u2-bridge/crsf-tx1.env /etc/u1u2-bridge/crsf-tx2.env` |
+| Preflight CRSF (без запуска моста) | `uv run python -m common.crsf_bridge --serial /dev/ttyUSB-CRSF1 --listen 0.0.0.0:14552 --peer 192.168.1.20:14552 --dry-run` |
+| Валидация env-файла CRSF | `uv run python -m common.crsf_bridge --check-config /etc/u1u2-bridge/crsf-p1.env` (u1) / `crsf-elrs.env` (u2) |
 
 ### Зависимости (Python, локально)
 

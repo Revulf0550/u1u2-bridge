@@ -25,10 +25,12 @@ if [[ "$ROLE" == "u1" ]]; then
   PEER_IP="192.168.1.10"
   PEER_IP_WG="10.10.0.2"
   VIDEO_UNIT="video-rx.service"
+  CRSF_INST="p1"
 else
   PEER_IP="192.168.1.20"
   PEER_IP_WG="10.10.0.1"
   VIDEO_UNIT="video-tx.service"
+  CRSF_INST="elrs"
 fi
 
 # --- цветной вывод -----------------------------------------------------------
@@ -61,14 +63,12 @@ section() { echo; printf '== %s\n' "$1"; }
 
 section "systemd units"
 
-# crsf-bridge@tx1, tx2 — критичны на обеих ролях.
-for inst in tx1 tx2; do
-  if systemctl is-active --quiet "crsf-bridge@${inst}.service"; then
-    pass "crsf-bridge@${inst} активен"
-  else
-    fail "crsf-bridge@${inst} НЕ активен (см. \`systemctl status crsf-bridge@${inst}\`)"
-  fi
-done
+# CRSF-мост: один инстанс на роль — u1=@p1 (от пульта), u2=@elrs (к ELRS).
+if systemctl is-active --quiet "crsf-bridge@${CRSF_INST}.service"; then
+  pass "crsf-bridge@${CRSF_INST} активен"
+else
+  fail "crsf-bridge@${CRSF_INST} НЕ активен (см. \`systemctl status crsf-bridge@${CRSF_INST}\`)"
+fi
 
 # Видео — на каждой роли свой юнит.
 if systemctl is-active --quiet "$VIDEO_UNIT"; then
@@ -127,11 +127,11 @@ section "мост гоняет байты (требует ≥10s после ст
 # crsf_bridge.py пишет статистику "uart->udp=... B/s" раз в 10 секунд.
 # Если в логе за последнюю минуту такой строки нет — либо сервис только
 # что стартовал (подожди), либо физически нет трафика на UART.
-if journalctl -u 'crsf-bridge@tx1' --since '1 min ago' --no-pager 2>/dev/null \
+if journalctl -u "crsf-bridge@${CRSF_INST}" --since '1 min ago' --no-pager 2>/dev/null \
      | grep -q 'uart->udp'; then
-  pass "crsf-bridge@tx1 пишет stats line за последнюю минуту"
+  pass "crsf-bridge@${CRSF_INST} пишет stats line за последнюю минуту"
 else
-  warn "crsf-bridge@tx1 без stats line за минуту — сервис только стартовал? Или ELRS не подключён?"
+  warn "crsf-bridge@${CRSF_INST} без stats line за минуту — сервис только стартовал? Или ELRS не подключён?"
 fi
 
 # --- итог ---------------------------------------------------------------------
