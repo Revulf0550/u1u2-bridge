@@ -22,12 +22,18 @@
 #  при пересборке адаптеров: меняй только setup_udev.sh, install.sh не
 #  трогаем.)
 #
-# Опциональные env (для bench / VPN-фазы):
-#   PEER_IP_OVERRIDE=10.8.0.4      # перенаправить PEER в env-файлах на VPN
-#                                  # (вместо локального 192.168.1.x)
-#   SKIP_NETPLAN=1                 # не трогать netplan (сеть уже настроена)
+# Опциональные env:
+#   TRANSPORT=tunnel|direct       # адресация CRSF-peer (единый источник истины):
+#                                 #   tunnel = WireGuard 10.8.0.x (ДЕФОЛТ),
+#                                 #   direct = CPE710 LAN 192.168.1.x.
+#                                 # Видео-peer задаётся в video_tx.sh (PEER_HOST).
+#   SERIAL_DEV=/dev/...           # переопределить serial CRSF
+#                                 #   (дефолт: u1=/dev/ttyUSB0, u2=/dev/ttyS7)
+#   PEER_IP_OVERRIDE=10.8.0.4      # переопределить peer ТОЛЬКО для netplan
+#                                  # (на env CRSF не влияет — те берут TRANSPORT)
+#   SKIP_NETPLAN=1                 # не трогать netplan (в tunnel — авто-1)
 #   SKIP_VIDEO=1                   # не enable/start video-tx (U2) / video-rx (U1).
-#                                  # Нужно на бенче без MS2130 grabber / HDMI-очков:
+#                                  # Нужно на бенче без grabber / HDMI:
 #                                  # иначе gst-launch падает и юнит уходит в
 #                                  # бесконечный Restart-loop, забивая journalctl.
 
@@ -45,13 +51,25 @@ if [[ "$MODE" != "bench" && "$MODE" != "drone" ]]; then
   exit 1
 fi
 
+TRANSPORT="${TRANSPORT:-tunnel}"
+if [[ "$TRANSPORT" != "tunnel" && "$TRANSPORT" != "direct" ]]; then
+  echo "Usage: TRANSPORT={tunnel|direct} $0 {u1|u2}" >&2
+  exit 1
+fi
+# В tunnel-режиме статический 192.168.1.x netplan не нужен (адресация — WG);
+# без авто-skip дефолтный запуск переписал бы LAN и порвал текущий линк.
+if [[ "$TRANSPORT" == "tunnel" && -z "${SKIP_NETPLAN:-}" ]]; then
+  SKIP_NETPLAN=1
+  echo "==> TRANSPORT=tunnel → netplan не трогаем (SKIP_NETPLAN=1 авто)"
+fi
+
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root" >&2
   exit 1
 fi
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
-echo "==> repo: $REPO  role: $ROLE  mode: $MODE"
+echo "==> repo: $REPO  role: $ROLE  mode: $MODE  transport: $TRANSPORT"
 
 # --- 1. зависимости -----------------------------------------------------------
 apt update
@@ -196,27 +214,21 @@ if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
 fi
 
 # --- 7. env-файлы для CRSF-моста / joystick -----------------------------------
-# PEER_HOST зависит от (MODE, ROLE).
-# Bench: peer через CPE710 LAN. Drone: peer через WG-туннель.
-if [[ "$MODE" == "drone" ]]; then
-  if [[ "$ROLE" == "u2" ]]; then
-    PEER_HOST="10.8.0.6"
-  else
-    PEER_HOST="10.8.0.7"
-  fi
+# Реальная схема (вариант №1): u1 = crsf-bridge@p1 (Boxer → CH340 → ttyUSB0),
+# u2 = crsf-bridge@elrs (UART7 ttyS7 → ELRS). Один инстанс на роль, порт 14552.
+# Peer берётся из TRANSPORT (единый источник истины), НЕ из PEER_IP_OVERRIDE.
+if [[ "$TRANSPORT" == "tunnel" ]]; then
+  if [[ "$ROLE" == "u2" ]]; then CRSF_PEER="10.8.0.6"; else CRSF_PEER="10.8.0.7"; fi
 else
-  if [[ "$ROLE" == "u2" ]]; then
-    PEER_HOST="192.168.1.20"
-  else
-    PEER_HOST="192.168.1.10"
-  fi
+  if [[ "$ROLE" == "u2" ]]; then CRSF_PEER="192.168.1.20"; else CRSF_PEER="192.168.1.10"; fi
 fi
+CRSF_PORT=14552
 
 if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
-  # u1-drone: только joystick.env, crsf-tx*.env не нужны
+  # u1 plan B (отложенный): пульт как USB-HID joystick, не CRSF через JR-bay.
   cat > /etc/u1u2-bridge/joystick.env <<EOF
 DEVICE=/dev/input/event0
-PEER=$PEER_HOST:14550
+PEER=$CRSF_PEER:$CRSF_PORT
 RATE_HZ=250
 CHANNEL_MAP_PATH=/etc/u1u2-bridge/channels.toml
 TELEMETRY_LOG_INTERVAL_SEC=1.0
@@ -230,19 +242,22 @@ EOF
   else
     echo "==> channels.toml: уже существует, оставляем как есть"
   fi
-else
-  # bench (u1+u2) и u2-drone: одинаковые crsf-tx*.env с переменным PEER_HOST
-  cat > /etc/u1u2-bridge/crsf-tx1.env <<EOF
-SERIAL_DEV=/dev/ttyACM-CRSF1
+elif [[ "$ROLE" == "u1" ]]; then
+  # u1 вариант №1 (текущий): пульт Boxer → CH340 → /dev/ttyUSB0 → crsf-bridge@p1.
+  # CH340 даёт SerialNumber=0 → udev-symlink невозможен, ttyUSB0 напрямую.
+  cat > /etc/u1u2-bridge/crsf-p1.env <<EOF
+SERIAL_DEV=${SERIAL_DEV:-/dev/ttyUSB0}
 BAUD=420000
-LISTEN=0.0.0.0:14550
-PEER=$PEER_HOST:14550
+LISTEN=0.0.0.0:$CRSF_PORT
+PEER=$CRSF_PEER:$CRSF_PORT
 EOF
-  cat > /etc/u1u2-bridge/crsf-tx2.env <<EOF
-SERIAL_DEV=/dev/ttyACM-CRSF2
+else
+  # u2: UDP → crsf-bridge@elrs → /dev/ttyS7 (UART7) → ELRS-модуль.
+  cat > /etc/u1u2-bridge/crsf-elrs.env <<EOF
+SERIAL_DEV=${SERIAL_DEV:-/dev/ttyS7}
 BAUD=420000
-LISTEN=0.0.0.0:14551
-PEER=$PEER_HOST:14551
+LISTEN=0.0.0.0:$CRSF_PORT
+PEER=$CRSF_PEER:$CRSF_PORT
 EOF
 fi
 
@@ -250,22 +265,29 @@ fi
 # Правила теперь генерируются отдельным интерактивным скриптом setup_udev.sh
 # по реальным серийникам подключённых адаптеров. Здесь — только напоминание.
 if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
-  echo "==> drone-u1: UART-адаптеров нет, setup_udev.sh не нужен"
-else
-  if [[ ! -e /etc/udev/rules.d/90-u1u2-uart.rules ]]; then
+  echo "==> drone-u1 (plan B): пульт как USB-HID, UART-адаптер не нужен"
+elif [[ "$ROLE" == "u1" ]]; then
+  CRSF_SERIAL="${SERIAL_DEV:-/dev/ttyUSB0}"
+  if [[ ! -e "$CRSF_SERIAL" ]]; then
     echo
-    echo "==> udev-правила для адаптеров ещё не созданы."
-    echo "    После физического подключения адаптеров:"
-    echo "        sudo $REPO/setup_udev.sh"
-    echo "    Без этого /dev/ttyACM-CRSF1/2 не появятся, и crsf-bridge@tx*"
-    echo "    будет крутиться в Restart-loop."
+    echo "==> $CRSF_SERIAL ещё нет — подключи пульт Boxer (CH340)."
+    echo "    CH340 даёт SerialNumber=0, udev-symlink невозможен — crsf-p1.env"
+    echo "    использует /dev/ttyUSB0 напрямую (один адаптер на хосте)."
   else
-    echo "==> udev-правила уже на месте (/etc/udev/rules.d/90-u1u2-uart.rules)"
+    echo "==> $CRSF_SERIAL на месте (пульт Boxer → crsf-bridge@p1)"
+  fi
+else
+  CRSF_SERIAL="${SERIAL_DEV:-/dev/ttyS7}"
+  if [[ ! -e "$CRSF_SERIAL" ]]; then
+    echo
+    echo "==> $CRSF_SERIAL ещё нет — нужен UART7 overlay (см. §2b выше) + reboot."
+  else
+    echo "==> $CRSF_SERIAL на месте (UART7 → ELRS, crsf-bridge@elrs)"
   fi
 fi
 
 # Проверка, что пользователь, под которым работает systemd-юнит, в dialout —
-# иначе после реконнекта адаптера сервис не сможет открыть /dev/ttyACMx.
+# иначе сервис не сможет открыть serial-устройство CRSF.
 if ! getent group dialout | grep -qw "${SUDO_USER:-ubuntu}"; then
   echo
   echo "!! ${SUDO_USER:-ubuntu} не в группе dialout. Выполните:"
@@ -279,7 +301,7 @@ fi
 # video-rx упадёт. tmpfiles.d пересоздаёт при boot.
 # ВНИМАНИЕ: настройка проверена ручным запуском cage + gst-launch-1.0;
 # service-mode (`systemctl start video-rx`) на железе пока не подтверждён.
-if [[ "$ROLE" == "u1" && "$MODE" == "bench" ]]; then
+if [[ "$ROLE" == "u1" ]]; then
   systemctl set-default multi-user.target
   systemctl disable --now gdm3 lightdm sddm 2>/dev/null || true
 
@@ -302,32 +324,37 @@ sysctl --system >/dev/null
 # --- 11. запуск ---------------------------------------------------------------
 systemctl daemon-reload
 
-if [[ "$MODE" == "drone" ]]; then
-  if [[ "$ROLE" == "u1" ]]; then
-    systemctl enable --now joystick-to-crsf.service
+# CRSF: один инстанс на роль. u1=@p1 (или joystick в plan B), u2=@elrs.
+if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
+  systemctl enable --now joystick-to-crsf.service
+elif [[ "$ROLE" == "u1" ]]; then
+  systemctl enable --now crsf-bridge@p1.service
+else
+  systemctl enable --now crsf-bridge@elrs.service
+fi
+
+# Видео отвязано от MODE: u2=video-tx, u1=video-rx.
+if [[ -z "${SKIP_VIDEO:-}" ]]; then
+  if [[ "$ROLE" == "u2" ]]; then
+    systemctl enable --now video-tx.service
   else
-    systemctl enable --now crsf-bridge@tx1.service
-    # tx2 пока не активируем — у дрона один ELRS канал
+    systemctl enable --now video-rx.service
   fi
 else
-  systemctl enable --now crsf-bridge@tx1.service
-  systemctl enable --now crsf-bridge@tx2.service
-  if [[ -z "${SKIP_VIDEO:-}" ]]; then
-    if [[ "$ROLE" == "u2" ]]; then
-      systemctl enable --now video-tx.service
-    else
-      systemctl enable --now video-rx.service
-    fi
-  else
-    echo "==> SKIP_VIDEO=1 — video-tx/video-rx не активируется"
-  fi
+  echo "==> SKIP_VIDEO=1 — video-tx/video-rx не активируется"
 fi
 
 echo
 echo "=========================================================================="
 echo " Готово. Проверка:"
-echo "   ping -i 0.2 $PEER_IP                    # связь по CPE710"
-echo "   systemctl status crsf-bridge@tx1 crsf-bridge@tx2"
+echo "   ping -i 0.2 $PEER_IP                    # связь по CPE710 (direct)"
+if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
+  echo "   systemctl status joystick-to-crsf"
+elif [[ "$ROLE" == "u1" ]]; then
+  echo "   systemctl status crsf-bridge@p1"
+else
+  echo "   systemctl status crsf-bridge@elrs"
+fi
 if [[ -z "${SKIP_VIDEO:-}" ]]; then
   if [[ "$ROLE" == "u2" ]]; then
     echo "   journalctl -u video-tx -f --since '1 min ago'"
