@@ -15,9 +15,10 @@
 set -euo pipefail
 
 LISTEN_PORT="${LISTEN_PORT:-5600}"
-# 500 ms — под wg-через-интернет (RTT 180 мс). На CPE710 (3–7 мс) — снижать
-# до 30–50, это основной knob для glass-to-glass latency.
-JITTER_LATENCY="${JITTER_LATENCY:-500}"
+# 50 ms — измерено на bench-WG через интернет (RTT ~150 мс) 2026-06-04:
+# порог дропов ~10 мс, 50 = 5× запас. Это основной knob для glass-to-glass
+# latency и число link-specific — на CPE710 (3–7 мс) подбирать заново.
+JITTER_LATENCY="${JITTER_LATENCY:-50}"
 
 # Перед запуском убедитесь, что Orange Pi загрузился без display-manager'а:
 #   sudo systemctl set-default multi-user.target

@@ -173,6 +173,16 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-06-04 · `waylandsink` не ест NV12 напрямую — `videoconvert` обязателен
+
+Микро-выигрыш «убрать `videoconvert` перед `waylandsink` в `video_rx.sh`» отметён: на live (`videotestsrc`) без него — чёрный экран. `mppvideodec` отдаёт `NV12`, но `waylandsink` согласует только `RGBx` (видно в `-v`: с `videoconvert` появляется `GstWaylandSink.sink caps … format=RGBx`, без него строки caps синка нет, при этом `not-negotiated` не печатается — тихий caps-разрыв). Не пробовать повторно.
+
+**Правило:** в RX-цепочке RK3588 `mppvideodec ! videoconvert ! waylandsink` — `videoconvert` (NV12→RGBx) обязателен, не удалять ради латенси.
+
+**Проверка:** `grep "GstWaylandSink.*sink: caps" rx.log` непусто (format=RGBx). Пусто при живом pipeline без ошибок → caps-разрыв, на мониторе чёрный экран.
+
+---
+
 ### 2026-06-03 · `! video/x-h264,profile=baseline` после `mpph264enc` вешает pipeline
 
 В `u2/video_tx.sh` capsfilter `video/x-h264,profile=baseline` стоял сразу после `mpph264enc`. Энкодер отдаёт caps с `profile=Baseline` (с заглавной), фильтр требует `baseline` (строчная) → caps-негоциация молча падает, pipeline переходит в PLAYING без ошибки, downstream-пады без caps, `udpsink` отправляет 0 пакетов. Две сессии ушли на ложные гипотезы (RKMPP завис, wg сломан, MTU, грабер сломан) пока не догадались убрать capsfilter.
