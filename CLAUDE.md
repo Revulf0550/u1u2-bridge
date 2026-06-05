@@ -172,6 +172,27 @@
 > Новые записи добавляй **сверху**. После каждого merged PR спрашивай себя:
 > «Произошёл хоть один сюрприз / откат / 'ой не туда'? Если да — формулируй правилом».
 
+### 2026-06-05 · video.env писался только в direct → дыра переключателя режимов
+install.sh §7b писал /etc/u1u2-bridge/video.env (видео-peer u2) только при TRANSPORT=direct; в tunnel полагался на fallback PEER_HOST=10.8.0.6 в video_tx.sh. При switch direct→tunnel старый video.env=192.168.1.20 оставался на диске и уводил видео не туда.
+**Правило:** peer-адрес (CRSF и видео) писать в env для ВСЕХ транспортов из единого источника ($CRSF_PEER), не полагаясь на неявный fallback в скрипте. Смена TRANSPORT обязана перезаписывать ВСЕ peer-конфиги, а не только CRSF.
+**Проверка:** после install.sh TRANSPORT=X на u2 — cat /etc/u1u2-bridge/video.env показывает адрес u1 для режима X (direct→192.168.1.20, tunnel→10.8.0.6).
+
+---
+
+### 2026-06-05 · netplan Pi location-adaptive → switcher netplan НЕ трогает
+На обеих Pi два netplan: 99-u1u2-bridge.yaml (статика 192.168.1.x на zz-all-en) + 50-cloud-init.yaml (dhcp4:true на en*/eth*). Мёрджатся по ключу → интерфейс имеет И статику, И DHCP. На мосту (DHCP-сервера нет) живёт статика; дома DHCP даёт интернет+маршрут для WG, статика висит безвредным вторым адресом. Поэтому переключение №1↔№2 не требует менять netplan.
+**Правило:** switch-mode.ps1 деплоит install.sh с SKIP_NETPLAN=1 в ОБОИХ режимах — netplan не трогать (иначе риск lockout безмониторной u2). Сеть адаптируется к месту сама.
+**Проверка:** ls /etc/netplan/ = 50-cloud-init.yaml + 99-u1u2-bridge.yaml; на мосту ip route без default, дома — с default от DHCP.
+
+---
+
+### 2026-06-05 · Скачанный .ps1 блокируется ExecutionPolicy (Mark-of-the-Web)
+switch-mode.ps1, полученный скачиванием, нёс Zone.Identifier (MOTW) → при RemoteSigned PowerShell отказал: "not digitally signed ... cannot run". Не баг скрипта.
+**Правило:** ps1-файлы, доставленные скачиванием, разблокировать Unblock-File .\script.ps1 перед запуском (или отдавать ops-скрипты записью в репо через Claude Code, минуя загрузку — тогда MOTW нет). Системную ExecutionPolicy не менять.
+**Проверка:** Get-Item .\script.ps1 -Stream Zone.Identifier после Unblock-File бросает "stream not found"; скрипт запускается.
+
+---
+
 ### 2026-06-05 · WG on/off — взаимоисключающие режимы (мост vs интернет)
 ARDOR ходит в интернет/к ассистенту/в Claude Code через WireGuard. WG-on = есть интернет+ассистент+Claude Code, но kill-switch режет мост 192.168.1.x; WG-off = мост доступен, но Claude Code/ассистент недоступны.
 **Правило:** для моста — БАТЧ: WG-off → команды в обычном PowerShell с Start-Transcript → WG-on → прислать транскрипт ассистенту. Claude Code (нужен интернет) — только репо/git при WG-on. (Дополняет урок про «Общий сбой» от kill-switch.)
