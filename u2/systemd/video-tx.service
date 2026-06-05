@@ -7,6 +7,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# Видео-peer (PEER_HOST) — из env, симметрично CRSF. '-' = отсутствие файла
+# не валит юнит (в tunnel файла нет, video_tx.sh берёт fallback 10.8.0.6).
+EnvironmentFile=-/etc/u1u2-bridge/video.env
 ExecStart=/opt/u1u2-bridge/u2/video_tx.sh
 Restart=always
 RestartSec=3

@@ -261,6 +261,34 @@ PEER=$CRSF_PEER:$CRSF_PORT
 EOF
 fi
 
+# --- 7b. env видео-передатчика (только u2, только direct) ---------------------
+# Симметрично CRSF: в direct видео-peer = адрес u1 по мосту (192.168.1.20).
+# В tunnel файл НЕ пишем — video_tx.sh берёт свой fallback PEER_HOST=10.8.0.6
+# (тот же WG-адрес u1), tunnel-ветка остаётся байт-нетронутой. EnvironmentFile
+# в video-tx.service — с префиксом '-', отсутствие файла юнит не валит.
+if [[ "$ROLE" == "u2" && "$TRANSPORT" == "direct" ]]; then
+  cat > /etc/u1u2-bridge/video.env <<EOF
+PEER_HOST=192.168.1.20
+EOF
+  echo "==> video.env: PEER_HOST=192.168.1.20 (direct, мост → u1)"
+fi
+
+# --- 7c. UFW allow для direct-моста (192.168.1.x) ----------------------------
+# Только TRANSPORT=direct. СТРОГО аддитивно: ufw allow idempotent (повтор даёт
+# "Skipping adding existing rule"). НИКОГДА `ufw enable`, НИКОГДА смена
+# default-policy. Если ufw inactive (u1) — правила лягут спящими, это ок.
+# Парно к смене CRSF/видео-source: без этого UFW на active-стороне (u2) молча
+# дропнет пакеты с нового источника (CLAUDE.md Lessons 2026-05-24 / 2026-06-05).
+if [[ "$TRANSPORT" == "direct" ]] && command -v ufw &>/dev/null; then
+  if [[ "$ROLE" == "u2" ]]; then
+    ufw allow from 192.168.1.20 to any port 14552 proto udp comment "u1 CRSF local-subnet"
+    ufw allow from 192.168.1.0/24 to any port 22 proto tcp comment "SSH from bridge subnet"
+  else
+    ufw allow from 192.168.1.10 to any port 5600 proto udp comment "u2 video local-subnet"
+  fi
+  echo "==> UFW: direct-allow добавлены (role=$ROLE, аддитивно, без enable)"
+fi
+
 # --- 8. udev-правила для адаптеров ------------------------------------------
 # Правила теперь генерируются отдельным интерактивным скриптом setup_udev.sh
 # по реальным серийникам подключённых адаптеров. Здесь — только напоминание.
