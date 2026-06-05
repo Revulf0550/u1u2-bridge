@@ -36,6 +36,8 @@
 #                                  # Нужно на бенче без grabber / HDMI:
 #                                  # иначе gst-launch падает и юнит уходит в
 #                                  # бесконечный Restart-loop, забивая journalctl.
+#   SKIP_APT=1                     # пропустить apt update/install (оффлайн-
+#                                  # редеплой / поле, Режим №2; пакеты уже стоят).
 
 set -euo pipefail
 
@@ -63,6 +65,8 @@ if [[ "$TRANSPORT" == "tunnel" && -z "${SKIP_NETPLAN:-}" ]]; then
   echo "==> TRANSPORT=tunnel → netplan не трогаем (SKIP_NETPLAN=1 авто)"
 fi
 
+SKIP_APT="${SKIP_APT:-}"
+
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root" >&2
   exit 1
@@ -72,19 +76,26 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 echo "==> repo: $REPO  role: $ROLE  mode: $MODE  transport: $TRANSPORT"
 
 # --- 1. зависимости -----------------------------------------------------------
-apt update
-apt install -y \
-  python3 python3-serial \
-  gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
-  gstreamer1.0-plugins-ugly gstreamer1.0-libav \
-  gstreamer1.0-rockchip1 \
-  cage \
-  v4l-utils \
-  wireguard wireguard-tools \
-  curl git
+# SKIP_APT=1 — пропустить установку пакетов (оффлайн-редеплой / поле, Режим №2:
+# у Pi нет интернета, пакеты уже стоят). Без guard `apt update` при set -e
+# оборвал бы скрипт. Локальные проверки (§2 RKMPP) выполняются всегда.
+if [[ -n "$SKIP_APT" ]]; then
+  echo "==> SKIP_APT: пропускаю apt (зависимости считаю установленными)"
+else
+  apt update
+  apt install -y \
+    python3 python3-serial \
+    gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly gstreamer1.0-libav \
+    gstreamer1.0-rockchip1 \
+    cage \
+    v4l-utils \
+    wireguard wireguard-tools \
+    curl git
 
-if [[ "$MODE" == "drone" ]]; then
-  apt install -y python3-evdev
+  if [[ "$MODE" == "drone" ]]; then
+    apt install -y python3-evdev
+  fi
 fi
 
 # --- 2. проверка RKMPP --------------------------------------------------------
