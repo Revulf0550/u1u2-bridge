@@ -26,7 +26,7 @@
 #   TRANSPORT=tunnel|direct       # адресация CRSF-peer (единый источник истины):
 #                                 #   tunnel = WireGuard 10.8.0.x (ДЕФОЛТ),
 #                                 #   direct = CPE710 LAN 192.168.1.x.
-#                                 # Видео-peer задаётся в video_tx.sh (PEER_HOST).
+#                                 # Видео-peer (u2) тоже из TRANSPORT → video.env.
 #   SERIAL_DEV=/dev/...           # переопределить serial CRSF
 #                                 #   (дефолт: u1=/dev/ttyUSB0, u2=/dev/ttyS7)
 #   PEER_IP_OVERRIDE=10.8.0.4      # переопределить peer ТОЛЬКО для netplan
@@ -272,16 +272,17 @@ PEER=$CRSF_PEER:$CRSF_PORT
 EOF
 fi
 
-# --- 7b. env видео-передатчика (только u2, только direct) ---------------------
-# Симметрично CRSF: в direct видео-peer = адрес u1 по мосту (192.168.1.20).
-# В tunnel файл НЕ пишем — video_tx.sh берёт свой fallback PEER_HOST=10.8.0.6
-# (тот же WG-адрес u1), tunnel-ветка остаётся байт-нетронутой. EnvironmentFile
-# в video-tx.service — с префиксом '-', отсутствие файла юнит не валит.
-if [[ "$ROLE" == "u2" && "$TRANSPORT" == "direct" ]]; then
+# --- 7b. env видео-передатчика (только u2, ОБА транспорта) --------------------
+# Видео-peer u2 == адрес u1 в активном транспорте == $CRSF_PEER (u2 шлёт и
+# CRSF-телеметрию, и видео на один и тот же u1). Пишем в ОБОИХ режимах —
+# единый источник истины, как у CRSF. Это закрывает дыру переключателя:
+# direct→tunnel перезапишет .20 на 10.8.0.6, tunnel→direct — наоборот.
+# Fallback PEER_HOST=10.8.0.6 в video_tx.sh остаётся только аварийным.
+if [[ "$ROLE" == "u2" ]]; then
   cat > /etc/u1u2-bridge/video.env <<EOF
-PEER_HOST=192.168.1.20
+PEER_HOST=$CRSF_PEER
 EOF
-  echo "==> video.env: PEER_HOST=192.168.1.20 (direct, мост → u1)"
+  echo "==> video.env: PEER_HOST=$CRSF_PEER ($TRANSPORT, → u1)"
 fi
 
 # --- 7c. UFW allow для direct-моста (192.168.1.x) ----------------------------
