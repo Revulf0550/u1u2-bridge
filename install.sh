@@ -389,7 +389,12 @@ fi
 echo
 echo "=========================================================================="
 echo " Готово. Проверка:"
-echo "   ping -i 0.2 $PEER_IP                    # связь по CPE710 (direct)"
+if [[ "$TRANSPORT" == "direct" ]]; then
+  echo "   режим: direct — радио/CPE710 (192.168.1.x)"
+else
+  echo "   режим: tunnel — WireGuard (10.8.0.x)"
+fi
+echo "   ping -i 0.2 ${CRSF_PEER%%:*}                    # связь до peer ($TRANSPORT)"
 if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
   echo "   systemctl status joystick-to-crsf"
 elif [[ "$ROLE" == "u1" ]]; then
