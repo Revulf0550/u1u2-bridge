@@ -1,0 +1,92 @@
+<svg width="100%" viewBox="0 0 680 760" xmlns="http://www.w3.org/2000/svg">
+<title>Модуль 2 — SN74HC14N инвертор</title>
+<desc>Вертикальный DIP-14. Pin 1 INPUT зелёный от Boxer S.PORT. Pin 2 OUTPUT оранжевый «белый» к CH340G RXD. Pin 14 VCC синий от CH340G 3V3. Pins 7, 3, 5, 9, 11, 13 — GND-шина, объединены одной перемычкой.</desc>
+
+<rect x="0" y="0" width="680" height="760" fill="#1a1a18"/>
+
+<text x="340" y="24" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#C2C0B6">Выемка / точка pin 1 — вверху</text>
+<line x1="340" y1="32" x2="340" y2="60" stroke="#9c9a92" stroke-width="0.5" stroke-dasharray="3 3"/>
+
+<rect x="290" y="70" width="100" height="400" rx="6" fill="#2C2C2A" stroke="#888780" stroke-width="0.5"/>
+<path d="M 328 70 A 12 12 0 0 0 352 70" fill="#1A1A18" stroke="#888780" stroke-width="0.5"/>
+<text x="340" y="220" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#F1EFE8">SN74HC14N</text>
+<text x="340" y="240" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#B4B2A9">Schmitt</text>
+<text x="340" y="254" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#B4B2A9">inverter</text>
+
+<rect x="278" y="103" width="14" height="14" fill="#B4B2A9"/>
+<text x="303" y="114" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">1</text>
+<rect x="278" y="155" width="14" height="14" fill="#B4B2A9"/>
+<text x="303" y="166" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">2</text>
+<rect x="278" y="207" width="14" height="14" fill="#888780"/>
+<text x="303" y="218" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">3</text>
+<rect x="278" y="259" width="14" height="14" fill="#5F5E5A"/>
+<text x="303" y="270" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#B4B2A9">4</text>
+<rect x="278" y="311" width="14" height="14" fill="#888780"/>
+<text x="303" y="322" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">5</text>
+<rect x="278" y="363" width="14" height="14" fill="#5F5E5A"/>
+<text x="303" y="374" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#B4B2A9">6</text>
+<rect x="278" y="415" width="14" height="14" fill="#B4B2A9"/>
+<text x="303" y="426" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">7</text>
+
+<rect x="388" y="103" width="14" height="14" fill="#B4B2A9"/>
+<text x="377" y="114" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">14</text>
+<rect x="388" y="155" width="14" height="14" fill="#888780"/>
+<text x="377" y="166" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">13</text>
+<rect x="388" y="207" width="14" height="14" fill="#5F5E5A"/>
+<text x="377" y="218" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#B4B2A9">12</text>
+<rect x="388" y="259" width="14" height="14" fill="#888780"/>
+<text x="377" y="270" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">11</text>
+<rect x="388" y="311" width="14" height="14" fill="#5F5E5A"/>
+<text x="377" y="322" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#B4B2A9">10</text>
+<rect x="388" y="363" width="14" height="14" fill="#888780"/>
+<text x="377" y="374" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#F1EFE8">9</text>
+<rect x="388" y="415" width="14" height="14" fill="#5F5E5A"/>
+<text x="377" y="426" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#B4B2A9">8</text>
+
+<line x1="220" y1="110" x2="278" y2="110" stroke="#639922" stroke-width="3"/>
+<line x1="220" y1="162" x2="278" y2="162" stroke="#D85A30" stroke-width="3"/>
+<line x1="402" y1="110" x2="460" y2="110" stroke="#378ADD" stroke-width="3"/>
+
+<rect x="30" y="90" width="190" height="44" rx="8" fill="#27500A" stroke="#97C459" stroke-width="0.5"/>
+<text x="125" y="108" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#C0DD97">Pin 1 · INPUT</text>
+<text x="125" y="124" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#97C459">от Boxer pin 5 · зелёный</text>
+
+<rect x="30" y="142" width="190" height="44" rx="8" fill="#712B13" stroke="#F0997B" stroke-width="0.5"/>
+<text x="125" y="160" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#F5C4B3">Pin 2 · OUTPUT</text>
+<text x="125" y="176" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#F0997B">к CH340G RXD · белый</text>
+
+<rect x="460" y="90" width="190" height="44" rx="8" fill="#0C447C" stroke="#85B7EB" stroke-width="0.5"/>
+<text x="555" y="108" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#B5D4F4">Pin 14 · VCC</text>
+<text x="555" y="124" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#85B7EB">от CH340G 3V3 · синий</text>
+
+<text x="265" y="218" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#BA7517">↓ GND</text>
+<text x="265" y="322" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#BA7517">↓ GND</text>
+<text x="415" y="166" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#BA7517">GND ↓</text>
+<text x="415" y="270" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#BA7517">GND ↓</text>
+<text x="415" y="374" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#BA7517">GND ↓</text>
+
+<text x="265" y="270" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#5F5E5A">NC</text>
+<text x="265" y="374" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#5F5E5A">NC</text>
+<text x="415" y="218" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#5F5E5A">NC</text>
+<text x="415" y="322" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#5F5E5A">NC</text>
+<text x="415" y="426" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#5F5E5A">NC</text>
+
+<line x1="278" y1="214" x2="240" y2="214" stroke="#888780" stroke-width="2"/>
+<line x1="278" y1="318" x2="240" y2="318" stroke="#888780" stroke-width="2"/>
+<line x1="278" y1="422" x2="240" y2="422" stroke="#888780" stroke-width="2"/>
+<line x1="240" y1="214" x2="240" y2="510" stroke="#888780" stroke-width="3"/>
+
+<line x1="402" y1="162" x2="440" y2="162" stroke="#888780" stroke-width="2"/>
+<line x1="402" y1="266" x2="440" y2="266" stroke="#888780" stroke-width="2"/>
+<line x1="402" y1="370" x2="440" y2="370" stroke="#888780" stroke-width="2"/>
+<line x1="440" y1="162" x2="440" y2="510" stroke="#888780" stroke-width="3"/>
+
+<line x1="240" y1="510" x2="440" y2="510" stroke="#888780" stroke-width="5"/>
+<line x1="340" y1="510" x2="340" y2="640" stroke="#888780" stroke-width="5"/>
+
+<text x="500" y="498" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#C2C0B6">GND-шина (одна перемычка)</text>
+
+<rect x="180" y="640" width="320" height="60" rx="8" fill="#444441" stroke="#B4B2A9" stroke-width="0.5"/>
+<text x="340" y="664" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#D3D1C7">К общему GND</text>
+<text x="340" y="684" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#B4B2A9">GND-рейл breadboard · чёрный</text>
+</svg>
