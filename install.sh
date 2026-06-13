@@ -264,6 +264,8 @@ PEER=$CRSF_PEER:$CRSF_PORT
 EOF
 else
   # u2: UDP → crsf-bridge@elrs → /dev/ttyS7 (UART7) → ELRS-модуль.
+  # u2: /dev/ttyS7 = UART7 overlay m2 → физ. header pin 26 (GPIO1_B5), TX управления.
+  # Проверено gpio readall 2026-06-13. RX/телеметрия — путь m1 (pin 29/38), неактивен → трек D.
   cat > /etc/u1u2-bridge/crsf-elrs.env <<EOF
 SERIAL_DEV=${SERIAL_DEV:-/dev/ttyS7}
 BAUD=420000
