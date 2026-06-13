@@ -64,7 +64,7 @@
 <text x="425" y="195" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">EdgeTX на Boxer:</text>
 <text x="425" y="215" font-family="JetBrains Mono, monospace" font-size="11" fill="#181613">Internal RF = OFF</text>
 <text x="425" y="231" font-family="JetBrains Mono, monospace" font-size="11" fill="#181613">External RF = CRSF</text>
-<text x="425" y="247" font-family="JetBrains Mono, monospace" font-size="11" fill="#181613">Baudrate = 400 000</text>
+<text x="425" y="247" font-family="JetBrains Mono, monospace" font-size="11" fill="#181613">Baudrate = 420 000</text>
 
 <line x1="425" y1="268" x2="635" y2="268" stroke="#cdc4b4" stroke-width="0.5"/>
 

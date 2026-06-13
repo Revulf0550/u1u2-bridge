@@ -1,8 +1,8 @@
-<svg width="100%" viewBox="0 0 680 834" xmlns="http://www.w3.org/2000/svg">
+<svg width="100%" viewBox="0 0 705 834" xmlns="http://www.w3.org/2000/svg">
 <title>Общая цепь — все три модуля с проводами (сторона Orange Pi u1)</title>
 <desc>Boxer JR-bay → SN74HC14N → CH340G → Orange Pi u1 USB. Зелёный = сигнал входа, «белый» = сигнал выхода, синий = VCC, чёрный = общая GND-шина. 9 перемычек DuPont.</desc>
 
-<rect x="0" y="0" width="680" height="834" fill="#f4f1e9"/>
+<rect x="0" y="0" width="705" height="834" fill="#f4f1e9"/>
 
 <text x="340" y="30" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="16" font-weight="500" fill="#181613">Общая цепь — все три модуля с проводами</text>
 <text x="340" y="50" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459" font-style="italic">SN74HC14N показан функционально, реальный pinout — в Модуле 2</text>
@@ -125,7 +125,7 @@
 <text x="136" y="693" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">Как работает цепь · расшифровка</text>
 <text x="32" y="713" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">1. Boxer выдаёт на S.PORT инвертированный CRSF — single-wire, 250 Гц, simplex (только TX).</text>
 <text x="32" y="729" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">2. SN74HC14N (вентиль 1A→1Y) переворачивает уровень в нормальный CRSF, Schmitt чистит фронты.</text>
-<text x="32" y="745" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">3. CH340G принимает CRSF на RXD и отдаёт по USB в Orange Pi u1 как /dev/ttyUSB0 @ 400000 бод.</text>
+<text x="32" y="745" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">3. CH340G принимает CRSF на RXD и отдаёт по USB в Orange Pi u1 как /dev/ttyUSB0 @ 420000 бод.</text>
 <text x="32" y="761" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">4. Питание: 3V3 CH340G → VCC инвертора (5V спалит вход). Земля — общий breadboard GND-рейл.</text>
 <line x1="32" y1="773" x2="648" y2="773" stroke="#BA7517" stroke-width="0.3" opacity="0.5"/>
 <text x="32" y="791" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#854F0B"><tspan font-weight="500">Расшифровка:</tspan> S.PORT — выход CRSF Boxer · 1A/1Y — вход/выход вентиля инвертора ·</text>
