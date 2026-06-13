@@ -44,7 +44,7 @@
 │   ├── video_tx.sh        # GStreamer TX pipeline
 │   └── systemd/
 ├── install.sh             # деплоер на Orange Pi (роль u1|u2)
-├── docs/                  # HANDOFF.md, документация по железу/деплою
+├── docs/                  # diagrams/ (канон-схемы pin26), cheatsheets/, handoff/, roadmap/
 └── tests/                 # unit-тесты с моками socket/serial
 ```
 
