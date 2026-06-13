@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Смена режима · u1u2-bridge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4f1e9; --ink:#181613; --muted:#6b6459; --line:#d8d2c4;
+    --teal:#0d6e63; --teal-bg:#0d6e6312; --coral:#bf4317; --coral-bg:#bf431712;
+    --card:#fbf9f3;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    font-size:13.5px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:28px 22px 40px;
+  }
+  .wrap{max-width:1040px;margin:0 auto}
+  code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+  /* ---- header ---- */
+  header{border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:14px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 4px}
+  h1{font-size:25px;font-weight:700;margin:0;letter-spacing:-.01em}
+  h1 .arrow{color:var(--muted);font-weight:500}
+  .sub{margin:5px 0 0;color:var(--muted);font-size:12.5px}
+  .sub code{color:var(--ink);background:#0000000a;padding:1px 5px;border-radius:3px}
+
+  /* ---- state strip ---- */
+  .state{display:flex;flex-wrap:wrap;gap:0 22px;margin:12px 0 18px;
+    font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
+  .state b{color:var(--ink);font-weight:600}
+  .state span{padding:2px 0}
+
+  /* ---- panels ---- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:7px;
+    padding:0;overflow:hidden}
+  .panel.tunnel{border-top:4px solid var(--teal)}
+  .panel.direct{border-top:4px solid var(--coral)}
+  .phead{padding:13px 16px 11px;border-bottom:1px solid var(--line)}
+  .ptag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase}
+  .tunnel .ptag{color:var(--teal)} .direct .ptag{color:var(--coral)}
+  .ptitle{font-size:17px;font-weight:700;margin:3px 0 0}
+  .ptitle .from{color:var(--muted);font-weight:500;font-size:14px}
+
+  /* ---- WG gate: the signature ---- */
+  .gate{display:flex;align-items:center;gap:10px;margin:11px 16px;padding:10px 13px;
+    border-radius:6px;border:1px dashed}
+  .tunnel .gate{background:var(--teal-bg);border-color:var(--teal)}
+  .direct .gate{background:var(--coral-bg);border-color:var(--coral)}
+  .gate .wg{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;
+    letter-spacing:.1em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+  .gate .badge{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:15px;
+    letter-spacing:.04em;padding:4px 12px;border-radius:5px;color:#fff;white-space:nowrap}
+  .tunnel .badge{background:var(--teal)} .direct .badge{background:var(--coral)}
+  .gate .why{font-size:11px;color:var(--muted);line-height:1.35}
+
+  /* ---- steps ---- */
+  ol.steps{margin:6px 0 4px;padding:0 16px 4px;list-style:none;counter-reset:s}
+  ol.steps>li{position:relative;padding:7px 0 7px 30px;border-top:1px solid var(--line);
+    counter-increment:s}
+  ol.steps>li:first-child{border-top:none}
+  ol.steps>li::before{content:counter(s);position:absolute;left:0;top:8px;
+    font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+    width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:#fff}
+  .tunnel ol.steps>li::before{background:var(--teal)}
+  .direct ol.steps>li::before{background:var(--coral)}
+  .steps .lead{font-weight:600}
+  .steps .note{color:var(--muted);font-size:11.5px}
+
+  pre.cmd{margin:6px 0 2px;background:var(--ink);color:#f4f1e9;border-radius:5px;
+    padding:9px 12px;font-family:"IBM Plex Mono",monospace;font-size:12px;
+    overflow-x:auto;line-height:1.45}
+  pre.cmd .c{color:#8aa39b} /* comment */
+  .inline{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:#0000000d;
+    padding:1px 5px;border-radius:3px}
+
+  .drone{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
+    font-weight:700;letter-spacing:.08em;color:#fff;background:#a32b14;
+    padding:2px 7px;border-radius:4px;text-transform:uppercase;margin-top:3px}
+
+  /* ---- footer notes ---- */
+  .notes{margin-top:18px;border-top:1px solid var(--line);padding-top:13px}
+  .notes h2{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 9px}
+  .notes ul{margin:0;padding:0;list-style:none;
+    display:grid;grid-template-columns:1fr 1fr;gap:6px 26px}
+  .notes li{font-size:12px;padding-left:16px;position:relative;line-height:1.4}
+  .notes li::before{content:"›";position:absolute;left:0;color:var(--coral);font-weight:700}
+  .notes b{font-weight:600}
+  .warn::before{content:"⚠"!important;color:var(--coral)}
+
+  footer{margin-top:16px;font-family:"IBM Plex Mono",monospace;font-size:10px;
+    color:var(--muted);display:flex;justify-content:space-between;border-top:1px solid var(--line);
+    padding-top:8px}
+
+  @media (max-width:760px){
+    .grid{grid-template-columns:1fr}
+    .notes ul{grid-template-columns:1fr}
+  }
+  @media print{
+    @page{size:A4 portrait;margin:11mm}
+    body{padding:0;font-size:11px;background:#fff}
+    .panel,.notes,pre.cmd{break-inside:avoid}
+    pre.cmd{background:#181613 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .badge,ol.steps>li::before,.drone,.panel.tunnel,.panel.direct{
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">u1u2-bridge · field card</p>
+    <h1>Смена режима <span class="arrow">·</span> радиомост ⇄ WireGuard-туннель</h1>
+    <p class="sub">Один переключатель: <code>switch-mode.ps1</code> в корне репо. Запуск из обычного PowerShell.
+      Скрипт <b>не трогает</b> физику и WG — их выставляешь руками <b>до</b> запуска.</p>
+  </header>
+
+  <div class="state">
+    <span><b>u1</b> = RX + монитор · <b>u2</b> = TX, headless</span>
+    <span>сервисы u1: <b>crsf-bridge@p1 · video-rx · wg-quick@wg0</b></span>
+    <span>сервисы u2: <b>crsf-bridge@elrs · video-tx · wg-quick@wg0</b></span>
+    <span>u2 UART: <b>/dev/ttyS7 = UART7 m2 → pin 26</b> (TX, одностор.)</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ TO TUNNEL ============ -->
+    <section class="panel tunnel">
+      <div class="phead">
+        <div class="ptag">Режим №1 · резерв</div>
+        <div class="ptitle"><span class="from">→</span> WireGuard-туннель <span class="from">(через интернет)</span></div>
+      </div>
+
+      <div class="gate">
+        <span class="wg">WireGuard</span>
+        <span class="badge">ВКЛ</span>
+        <span class="why">Pi доступны по <b>10.8.0.6 / .7</b>. WG нужен и для handshake, и для доступа.</span>
+      </div>
+
+      <ol class="steps">
+        <li><span class="lead">Физика:</span> обе Pi → <span class="note">домашний свитч (нужен интернет для WG-handshake).</span></li>
+        <li><span class="lead">WG на ПК:</span> <b>включить</b> <span class="note">→ Pi видны по 10.8.0.6/.7.</span></li>
+        <li><span class="lead">Запуск</span> <span class="note">(PowerShell, корень репо):</span>
+          <pre class="cmd">.\switch-mode.ps1 tunnel</pre>
+        </li>
+        <li><span class="lead">Подтвердить рестарт</span> <span class="inline">[y/N]</span> <span class="note">— скрипт перезапустит crsf/video.</span><br>
+          <span class="drone">дрон OFF на момент рестарта</span></li>
+        <li><span class="lead">Проверка:</span>
+          <pre class="cmd">ping 10.8.0.7
+ssh -i $HOME\.ssh\u1u2 ubuntu@10.8.0.7 "systemctl is-active crsf-bridge@elrs video-tx"</pre>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ TO DIRECT ============ -->
+    <section class="panel direct">
+      <div class="phead">
+        <div class="ptag">Режим №2 · боевой</div>
+        <div class="ptitle"><span class="from">→</span> радиомост CPE710 <span class="from">(прямой, по воздуху)</span></div>
+      </div>
+
+      <div class="gate">
+        <span class="wg">WireGuard</span>
+        <span class="badge">ВЫКЛ</span>
+        <span class="why">kill-switch (<span class="mono">0.0.0.0/0</span>) иначе режет всю <b>192.168.1.x</b>.</span>
+      </div>
+
+      <ol class="steps">
+        <li><span class="lead">Физика:</span> Pi на концы CPE710. <span class="note">Конец A: u1 + ПК через <b>мини-свитч</b> (обязателен); u2 → CPE-Client.</span></li>
+        <li><span class="lead">WG на ПК:</span> <b>выключить</b> <span class="note">→ Pi видны по 192.168.1.20/.10.</span></li>
+        <li><span class="lead">Запуск</span> <span class="note">(PowerShell, корень репо):</span>
+          <pre class="cmd">.\switch-mode.ps1 direct</pre>
+        </li>
+        <li><span class="lead">Подтвердить рестарт</span> <span class="inline">[y/N]</span>.<br>
+          <span class="drone">дрон OFF на момент рестарта</span></li>
+        <li><span class="lead">Проверка:</span>
+          <pre class="cmd">ping 192.168.1.20</pre>
+        </li>
+      </ol>
+    </section>
+
+  </div>
+
+  <div class="notes">
+    <h2>Что важно помнить</h2>
+    <ul>
+      <li><b>Скрипт не трогает физику и WG</b> — выставь их руками до запуска (см. гейт WG в каждой колонке).</li>
+      <li><span class="inline">-NoRestart</span> — деплой конфига на диск без рестарта (безопасная проверка).</li>
+      <li class="warn"><b>Конец A: мини-свитч обязателен</b> — u1/RK3588 не линкуется напрямую в пассивный PoE CPE-AP. Технику только в порт <b>LAN</b> адаптера, никогда в POE / в сам CPE.</li>
+      <li>WG-ВКЛ и доступ к мосту <span class="mono">192.168.1.x</span> — <b>взаимоисключающие</b> (kill-switch).</li>
+      <li>Скачал скрипт заново → <span class="inline">Unblock-File .\switch-mode.ps1</span> (Mark-of-the-Web).</li>
+      <li>Под капотом: preflight-ping → <span class="mono">git archive HEAD</span> → scp → <span class="mono">install.sh TRANSPORT=&lt;mode&gt; SKIP_APT=1 SKIP_NETPLAN=1</span> → рестарт.</li>
+      <li>Режим по умолчанию после power-cycle = <b>последний задеплоенный</b> (зашит в env на диске, авто-детекта нет).</li>
+      <li><span class="inline">video.env</span> пишется из peer-адреса для обоих режимов — отдельный override не нужен.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <span>u1u2-bridge · switch-mode.ps1</span>
+    <span>field card · печать в PDF (A4)</span>
+  </footer>
+
+</div>
+</body>
+</html>
