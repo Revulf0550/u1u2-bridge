@@ -12,7 +12,7 @@
 ├── u1/          # деплой на мастер-пульт (HDMI вывод)
 ├── u2/          # деплой на выносную базу (видео-кодирование + ELRS)
 ├── install.sh   # деплоер на Orange Pi (роль u1|u2)
-├── docs/        # HANDOFF.md, документация
+├── docs/        # HANDOFF.md (обзор), diagrams/ (схемы линка), cheatsheets/
 └── tests/       # unit-тесты с моками socket/serial
 ```
 
@@ -44,7 +44,7 @@ sudo ./install.sh u2
 sudo ./install.sh u1
 ```
 
-Подробности — `docs/HANDOFF.md`.
+Подробности — `docs/HANDOFF.md` (архитектурный обзор, частично устарел). Актуальные факты — `CLAUDE.md`.
 
 ## Команды разработки
 
@@ -57,4 +57,4 @@ uv run mypy common tests   # только типы
 
 ## Состояние
 
-См. `docs/HANDOFF.md`, разделы 6 (Текущее состояние) и 8 (Следующие шаги).
+Актуальное состояние и уроки — `CLAUDE.md` (раздел Lessons & Incidents). Исходный план/этапы — `docs/HANDOFF.md` §6/§8 (⚠️ устарел).
