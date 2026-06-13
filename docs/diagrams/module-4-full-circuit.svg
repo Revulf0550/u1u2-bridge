@@ -1,0 +1,133 @@
+<svg width="100%" viewBox="0 0 680 834" xmlns="http://www.w3.org/2000/svg">
+<title>Общая цепь — все три модуля с проводами (сторона Orange Pi u1)</title>
+<desc>Boxer JR-bay → SN74HC14N → CH340G → Orange Pi u1 USB. Зелёный = сигнал входа, «белый» = сигнал выхода, синий = VCC, чёрный = общая GND-шина. 9 перемычек DuPont.</desc>
+
+<rect x="0" y="0" width="680" height="834" fill="#f4f1e9"/>
+
+<text x="340" y="30" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="16" font-weight="500" fill="#181613">Общая цепь — все три модуля с проводами</text>
+<text x="340" y="50" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459" font-style="italic">SN74HC14N показан функционально, реальный pinout — в Модуле 2</text>
+<rect x="270" y="62" width="140" height="20" rx="4" fill="#0d6e63"/>
+<text x="340" y="76" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#ffffff">→ Orange Pi u1</text>
+
+<rect x="20" y="120" width="130" height="280" rx="6" fill="#e6e1d2" stroke="#888780" stroke-width="0.75"/>
+<text x="85" y="145" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">Boxer</text>
+<text x="85" y="161" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">JR-bay</text>
+
+<rect x="65" y="195" width="12" height="10" fill="#b4b2a9"/>
+<text x="55" y="203" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="9" fill="#6b6459">p1</text>
+<rect x="65" y="220" width="12" height="10" fill="#b4b2a9"/>
+<text x="55" y="228" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="9" fill="#6b6459">p2</text>
+<rect x="65" y="245" width="12" height="10" fill="#bf4317"/>
+<text x="55" y="253" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="9" fill="#bf4317">p3</text>
+
+<rect x="138" y="315" width="12" height="10" fill="#181613"/>
+<text x="125" y="323" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="#181613">p4</text>
+<text x="155" y="323" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#444441">GND</text>
+
+<rect x="138" y="365" width="12" height="10" fill="#4f8a1f"/>
+<text x="125" y="373" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="#181613">p5</text>
+<text x="155" y="373" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#3B6D11">S.PORT</text>
+
+<rect x="275" y="200" width="160" height="160" rx="6" fill="#e6e1d2" stroke="#888780" stroke-width="0.75"/>
+<path d="M 345 200 A 10 6 0 0 0 365 200" fill="#f4f1e9" stroke="#888780" stroke-width="0.75"/>
+<text x="355" y="278" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">SN74HC14N</text>
+<text x="355" y="295" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">gate 1 · 1A → 1Y</text>
+<text x="355" y="312" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#6b6459" font-style="italic">переворачивает уровень</text>
+
+<rect x="267" y="225" width="14" height="12" fill="#4f8a1f"/>
+<text x="287" y="234" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" fill="#181613">p1 · 1A</text>
+<text x="287" y="247" font-family="Anthropic Sans, sans-serif" font-size="9" fill="#3B6D11" font-style="italic">INPUT</text>
+
+<rect x="429" y="225" width="14" height="12" fill="#ffffff" stroke="#181613" stroke-width="0.75"/>
+<text x="424" y="234" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" fill="#181613">p2 · 1Y</text>
+<text x="424" y="247" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="9" fill="#181613" font-style="italic">OUTPUT</text>
+
+<rect x="348" y="192" width="14" height="12" fill="#1d63b0"/>
+<text x="370" y="195" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" fill="#181613">p14</text>
+<text x="370" y="206" font-family="Anthropic Sans, sans-serif" font-size="9" fill="#185FA5" font-style="italic">VCC</text>
+
+<rect x="348" y="356" width="14" height="12" fill="#181613"/>
+<text x="370" y="368" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" fill="#181613">p7+шина</text>
+<text x="370" y="380" font-family="Anthropic Sans, sans-serif" font-size="9" fill="#444441" font-style="italic">GND</text>
+
+<rect x="500" y="200" width="160" height="160" rx="6" fill="#e6e1d2" stroke="#888780" stroke-width="0.75"/>
+<text x="580" y="278" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">CH340G</text>
+<text x="580" y="295" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">USB-UART</text>
+
+<rect x="492" y="220" width="14" height="12" fill="#1d63b0"/>
+<text x="514" y="230" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="#181613">3V3</text>
+
+<rect x="492" y="247" width="14" height="12" fill="#b4b2a9"/>
+<text x="514" y="257" font-family="JetBrains Mono, monospace" font-size="9" fill="#6b6459">TXD (skip)</text>
+
+<rect x="492" y="275" width="14" height="12" fill="#ffffff" stroke="#181613" stroke-width="0.75"/>
+<text x="514" y="285" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="#181613">RXD</text>
+
+<rect x="492" y="338" width="14" height="12" fill="#181613"/>
+<text x="514" y="348" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" fill="#181613">GND</text>
+
+<rect x="664" y="272" width="16" height="20" fill="#b4b2a9" stroke="#888780" stroke-width="0.5"/>
+<text x="640" y="312" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">USB</text>
+<text x="640" y="326" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" fill="#181613">→ u1</text>
+
+<path d="M150 370 L210 370 L210 231 L267 231" fill="none" stroke="#4f8a1f" stroke-width="3" stroke-linecap="round"/>
+<text x="186" y="218" font-family="Anthropic Sans, sans-serif" font-size="11" font-weight="500" fill="#27500A">зелёный</text>
+<text x="174" y="384" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#3B6D11">S.PORT → 1A</text>
+<rect x="152" y="363" width="42" height="13" fill="#f4f1e9"/>
+<text x="155" y="373" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#3B6D11">S.PORT</text>
+
+<path d="M443 231 L470 231 L470 281 L492 281" fill="none" stroke="#181613" stroke-width="5" stroke-linecap="round"/>
+<path d="M443 231 L470 231 L470 281 L492 281" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+<text x="448" y="223" font-family="Anthropic Sans, sans-serif" font-size="11" font-weight="500" fill="#181613">белый</text>
+<rect x="442" y="261" width="56" height="15" fill="#f4f1e9"/>
+<text x="445" y="272" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">1Y → RXD</text>
+
+<path d="M492 226 L470 226 L470 175 L355 175 L355 192" fill="none" stroke="#1d63b0" stroke-width="3" stroke-linecap="round"/>
+<text x="385" y="166" font-family="Anthropic Sans, sans-serif" font-size="11" font-weight="500" fill="#185FA5">синий: 3V3 → VCC</text>
+
+<line x1="20" y1="470" x2="660" y2="470" stroke="#181613" stroke-width="4" stroke-linecap="round"/>
+
+<path d="M144 325 L144 470" fill="none" stroke="#181613" stroke-width="3" stroke-linecap="round"/>
+<circle cx="144" cy="470" r="5" fill="#181613"/>
+
+<path d="M355 368 L355 470" fill="none" stroke="#181613" stroke-width="3" stroke-linecap="round"/>
+<circle cx="355" cy="470" r="5" fill="#181613"/>
+
+<path d="M492 344 L475 344 L475 470" fill="none" stroke="#181613" stroke-width="3" stroke-linecap="round"/>
+<circle cx="475" cy="470" r="5" fill="#181613"/>
+<rect x="231" y="447" width="218" height="15" fill="#f4f1e9"/>
+<text x="340" y="458" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="600" fill="#181613">общая GND-шина · breadboard rail</text>
+
+<text x="144" y="495" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">Boxer p4</text>
+<text x="355" y="495" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">SN p7 + шина (3,5,9,11,13)</text>
+<text x="475" y="495" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">CH340G GND</text>
+
+<rect x="20" y="535" width="640" height="125" rx="6" fill="#fbf9f3" stroke="#cdc4b4" stroke-width="0.5"/>
+<text x="40" y="558" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">Итого 9 перемычек DuPont</text>
+
+<rect x="50" y="568" width="12" height="3" fill="#4f8a1f"/>
+<text x="70" y="573" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#27500A">1 × зелёная — сигнал INPUT (S.PORT → 1A инвертора)</text>
+
+<rect x="50" y="584" width="12" height="3" fill="#ffffff" stroke="#181613" stroke-width="0.5"/>
+<text x="70" y="589" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">1 × белая — сигнал OUTPUT (1Y → RXD CH340G)</text>
+
+<rect x="50" y="600" width="12" height="3" fill="#1d63b0"/>
+<text x="70" y="605" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#185FA5">1 × синяя — питание VCC (3V3 → pin 14 SN74HC14N)</text>
+
+<rect x="50" y="616" width="12" height="3" fill="#181613"/>
+<text x="70" y="621" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">6 × чёрных — GND (Boxer p4, шина внутри инвертора, CH340G GND → общий рейл)</text>
+
+<text x="40" y="643" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459" font-style="italic">«6 × чёрных» внутри инвертора могут быть короткими — на одном breadboard соединяются через GND-рейл</text>
+
+<rect x="20" y="672" width="640" height="150" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<rect x="32" y="680" width="94" height="18" rx="9" fill="#7a5c00"/>
+<text x="79" y="693" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="1" fill="#ffffff">ПОЯСНЕНИЕ</text>
+<text x="136" y="693" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">Как работает цепь · расшифровка</text>
+<text x="32" y="713" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">1. Boxer выдаёт на S.PORT инвертированный CRSF — single-wire, 250 Гц, simplex (только TX).</text>
+<text x="32" y="729" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">2. SN74HC14N (вентиль 1A→1Y) переворачивает уровень в нормальный CRSF, Schmitt чистит фронты.</text>
+<text x="32" y="745" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">3. CH340G принимает CRSF на RXD и отдаёт по USB в Orange Pi u1 как /dev/ttyUSB0 @ 400000 бод.</text>
+<text x="32" y="761" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">4. Питание: 3V3 CH340G → VCC инвертора (5V спалит вход). Земля — общий breadboard GND-рейл.</text>
+<line x1="32" y1="773" x2="648" y2="773" stroke="#BA7517" stroke-width="0.3" opacity="0.5"/>
+<text x="32" y="791" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#854F0B"><tspan font-weight="500">Расшифровка:</tspan> S.PORT — выход CRSF Boxer · 1A/1Y — вход/выход вентиля инвертора ·</text>
+<text x="32" y="807" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#854F0B">VCC — питание · GND — земля · RXD — приём UART · CRSF — протокол управления дроном.</text>
+</svg>

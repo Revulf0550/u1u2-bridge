@@ -1,0 +1,95 @@
+<svg width="100%" viewBox="0 0 680 596" xmlns="http://www.w3.org/2000/svg">
+<title>Модуль 1 — Boxer JR-bay (источник CRSF)</title>
+<desc>Pin 5 S.PORT — зелёный провод к 1A инвертора. Pin 4 GND — чёрный провод к общей шине. Pin 3 VBAT 7.8 В опасен. Pins 1, 2 не подключаем. Модуль подключается двумя пинами (5 и 4) к инвертору SN74HC14N.</desc>
+
+<rect x="0" y="0" width="680" height="596" fill="#f4f1e9"/>
+
+<text x="340" y="30" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="16" font-weight="500" fill="#181613">Модуль 1 — Boxer JR-bay (источник CRSF)</text>
+<text x="340" y="50" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#6b6459">вид сверху · сторона антенны вверху</text>
+<rect x="514" y="18" width="146" height="22" rx="4" fill="#0d6e63"/>
+<text x="587" y="33" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#ffffff">→ Orange Pi u1</text>
+
+<rect x="280" y="80" width="120" height="380" rx="8" fill="#e6e1d2" stroke="#888780" stroke-width="1"/>
+<text x="340" y="105" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">JR-bay</text>
+
+<line x1="290" y1="125" x2="390" y2="125" stroke="#cdc4b4" stroke-width="0.3" stroke-dasharray="2 2"/>
+<text x="340" y="138" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">сторона антенны</text>
+
+<rect x="332" y="155" width="16" height="14" fill="#b4b2a9"/>
+<text x="340" y="166" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="9" font-weight="500" fill="#2C2C2A">1</text>
+
+<rect x="332" y="215" width="16" height="14" fill="#b4b2a9"/>
+<text x="340" y="226" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="9" font-weight="500" fill="#2C2C2A">2</text>
+
+<rect x="332" y="275" width="16" height="14" fill="#bf4317"/>
+<text x="340" y="286" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="9" font-weight="500" fill="#ffffff">3</text>
+
+<rect x="332" y="335" width="16" height="14" fill="#181613"/>
+<text x="340" y="346" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="9" font-weight="500" fill="#ffffff">4</text>
+
+<rect x="332" y="395" width="16" height="14" fill="#4f8a1f"/>
+<text x="340" y="406" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="9" font-weight="500" fill="#ffffff">5</text>
+
+<line x1="290" y1="435" x2="390" y2="435" stroke="#cdc4b4" stroke-width="0.3" stroke-dasharray="2 2"/>
+<text x="340" y="450" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">низ пульта</text>
+
+<line x1="332" y1="162" x2="270" y2="162" stroke="#b4b2a9" stroke-width="2"/>
+<rect x="40" y="142" width="230" height="40" rx="6" fill="#d3d1c7" stroke="#b4b2a9" stroke-width="0.75"/>
+<text x="155" y="160" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">Pin 1 · PPM</text>
+<text x="155" y="175" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#5F5E5A">не подключаем</text>
+
+<line x1="332" y1="222" x2="270" y2="222" stroke="#b4b2a9" stroke-width="2"/>
+<rect x="40" y="202" width="230" height="40" rx="6" fill="#d3d1c7" stroke="#b4b2a9" stroke-width="0.75"/>
+<text x="155" y="220" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">Pin 2 · +6V regulated</text>
+<text x="155" y="235" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#5F5E5A">не подключаем (не разведён)</text>
+
+<line x1="332" y1="282" x2="270" y2="282" stroke="#bf4317" stroke-width="2"/>
+<rect x="40" y="262" width="230" height="40" rx="6" fill="#F5C4B3" stroke="#bf4317" stroke-width="1"/>
+<text x="155" y="280" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#4A1B0C">Pin 3 · VBAT 7.8 В</text>
+<text x="155" y="295" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#993C1D">⚠ НЕ ТРОГАТЬ · сожжёт UART</text>
+
+<line x1="332" y1="342" x2="270" y2="342" stroke="#181613" stroke-width="3"/>
+<rect x="40" y="322" width="230" height="40" rx="6" fill="#b4b2a9" stroke="#181613" stroke-width="1"/>
+<text x="155" y="340" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">Pin 4 · GND</text>
+<text x="155" y="355" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#2C2C2A">чёрный · общая GND → Orange Pi</text>
+
+<line x1="332" y1="402" x2="270" y2="402" stroke="#4f8a1f" stroke-width="3"/>
+<rect x="40" y="382" width="230" height="40" rx="6" fill="#C0DD97" stroke="#4f8a1f" stroke-width="1"/>
+<text x="155" y="400" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#173404">Pin 5 · S.PORT</text>
+<text x="155" y="415" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#27500A">зелёный · к pin 1 (1A) SN74HC14N</text>
+
+<rect x="410" y="142" width="240" height="290" rx="8" fill="#fbf9f3" stroke="#cdc4b4" stroke-width="0.5"/>
+<text x="530" y="167" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">Откуда сигнал</text>
+
+<text x="425" y="195" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">EdgeTX на Boxer:</text>
+<text x="425" y="215" font-family="JetBrains Mono, monospace" font-size="11" fill="#181613">Internal RF = OFF</text>
+<text x="425" y="231" font-family="JetBrains Mono, monospace" font-size="11" fill="#181613">External RF = CRSF</text>
+<text x="425" y="247" font-family="JetBrains Mono, monospace" font-size="11" fill="#181613">Baudrate = 400 000</text>
+
+<line x1="425" y1="268" x2="635" y2="268" stroke="#cdc4b4" stroke-width="0.5"/>
+
+<text x="425" y="290" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">Сигнал на S.PORT pin —</text>
+<text x="425" y="306" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">single-wire half-duplex,</text>
+<text x="425" y="322" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">инвертированный CRSF,</text>
+<text x="425" y="338" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">с частотой 250 Гц</text>
+
+<line x1="425" y1="358" x2="635" y2="358" stroke="#cdc4b4" stroke-width="0.5"/>
+
+<text x="425" y="380" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">Режим simplex —</text>
+<text x="425" y="396" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">только TX в Pi.</text>
+<text x="425" y="412" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">Телеметрия отключена</text>
+<text x="425" y="428" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">(оператор видит OSD).</text>
+
+<rect x="40" y="462" width="600" height="64" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<rect x="52" y="470" width="86" height="18" rx="9" fill="#7a5c00"/>
+<text x="95" y="483" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="1" fill="#ffffff">ОПИСАНИЕ</text>
+<text x="148" y="483" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">Boxer JR-bay — что это:</text>
+<text x="52" y="503" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">RadioMaster Boxer (EdgeTX) — пульт оператора, источник CRSF для цепи u1.</text>
+<text x="52" y="519" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">Сигнал берётся с JR-bay (trainer): пин S.PORT — инвертированный CRSF 250 Гц.</text>
+
+<rect x="40" y="534" width="600" height="54" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<rect x="52" y="542" width="94" height="18" rx="9" fill="#7a5c00"/>
+<text x="99" y="555" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="1" fill="#ffffff">ПОЯСНЕНИЕ</text>
+<text x="156" y="555" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">Модуль подключается 2 пинами к инвертору SN74HC14N (Модуль 2 u1):</text>
+<text x="52" y="576" font-family="Anthropic Sans, sans-serif" font-size="11"><tspan fill="#27500A">pin 5 S.PORT (зел.) → вход 1A SN74HC14N</tspan><tspan fill="#6b6459">   ·   </tspan><tspan fill="#181613">pin 4 GND (чёрн.) → Orange Pi u1 (любой GND-пин)</tspan></text>
+</svg>

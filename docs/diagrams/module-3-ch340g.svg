@@ -1,0 +1,95 @@
+<svg width="100%" viewBox="0 0 680 672" xmlns="http://www.w3.org/2000/svg">
+<title>Модуль 3 — CH340G USB-UART (сторона Orange Pi u1)</title>
+<desc>CH340G — USB↔UART переходник на стороне Orange Pi u1. 3V3 синий к pin 14 VCC SN74HC14N, RXD «белый» от pin 2 OUTPUT SN74HC14N, GND чёрный к общей шине, TXD и 5V не подключаем (simplex single-wire). USB-A в Orange Pi u1.</desc>
+
+<rect x="0" y="0" width="680" height="672" fill="#f4f1e9"/>
+
+<text x="340" y="30" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="16" font-weight="500" fill="#181613">Модуль 3 — CH340G (USB-UART)</text>
+<text x="340" y="50" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#6b6459">USB-A слева к Orange Pi u1 · пин-хедер справа к инвертору</text>
+<rect x="514" y="18" width="146" height="22" rx="4" fill="#0d6e63"/>
+<text x="587" y="33" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#ffffff">→ Orange Pi u1</text>
+
+<rect x="140" y="180" width="320" height="200" rx="6" fill="#e6e1d2" stroke="#888780" stroke-width="0.75"/>
+<text x="300" y="290" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="500" fill="#181613">CH340G</text>
+<text x="300" y="306" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">USB to UART TTL</text>
+
+<rect x="70" y="245" width="74" height="50" rx="2" fill="#b4b2a9" stroke="#888780" stroke-width="0.5"/>
+<rect x="80" y="255" width="56" height="14" fill="#6b6459"/>
+<rect x="80" y="273" width="56" height="14" fill="#6b6459"/>
+<text x="107" y="318" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">USB-A → Orange Pi u1</text>
+
+<rect x="200" y="350" width="40" height="18" rx="2" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+<text x="220" y="362" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#633806">S1</text>
+<text x="220" y="384" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">jumper → 3V3</text>
+
+<rect x="290" y="350" width="80" height="18" rx="2" fill="#ece6d8" stroke="#cdc4b4" stroke-width="0.5"/>
+<text x="330" y="362" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#181613">TX-RX loop</text>
+<text x="330" y="384" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">снят</text>
+
+<rect x="453" y="200" width="14" height="14" fill="#b4b2a9"/>
+<text x="447" y="211" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#6b6459">5V</text>
+
+<rect x="453" y="235" width="14" height="14" fill="#1d63b0"/>
+<text x="447" y="246" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" font-weight="500" fill="#181613">3V3</text>
+
+<rect x="453" y="270" width="14" height="14" fill="#b4b2a9"/>
+<text x="447" y="281" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#6b6459">TXD</text>
+
+<rect x="453" y="305" width="14" height="14" fill="#ffffff" stroke="#181613" stroke-width="0.75"/>
+<text x="447" y="316" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" font-weight="500" fill="#181613">RXD</text>
+
+<rect x="453" y="340" width="14" height="14" fill="#181613"/>
+<text x="447" y="351" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" font-weight="500" fill="#181613">GND</text>
+
+<line x1="467" y1="207" x2="500" y2="207" stroke="#b4b2a9" stroke-width="1.5" stroke-dasharray="3 3"/>
+<rect x="500" y="190" width="160" height="34" rx="6" fill="#ece6d8" stroke="#cdc4b4" stroke-width="0.5"/>
+<text x="510" y="207" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">5V · не подключаем</text>
+<text x="510" y="220" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">используем 3V3 ниже</text>
+
+<line x1="467" y1="242" x2="500" y2="242" stroke="#1d63b0" stroke-width="3"/>
+<rect x="500" y="225" width="160" height="34" rx="6" fill="#B5D4F4" stroke="#1d63b0" stroke-width="1"/>
+<text x="510" y="242" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="600" fill="#042C53">3V3 · синий</text>
+<text x="510" y="255" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#185FA5">к pin 14 VCC SN74HC14N</text>
+
+<line x1="467" y1="277" x2="500" y2="277" stroke="#b4b2a9" stroke-width="1.5" stroke-dasharray="3 3"/>
+<rect x="500" y="260" width="160" height="34" rx="6" fill="#ece6d8" stroke="#cdc4b4" stroke-width="0.5" stroke-dasharray="2 2"/>
+<text x="510" y="277" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">TXD · НЕ подключаем</text>
+<text x="510" y="290" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">simplex · single-wire</text>
+
+<line x1="467" y1="312" x2="500" y2="312" stroke="#181613" stroke-width="5"/>
+<line x1="467" y1="312" x2="500" y2="312" stroke="#ffffff" stroke-width="3"/>
+<rect x="500" y="295" width="160" height="34" rx="6" fill="#ffffff" stroke="#181613" stroke-width="1"/>
+<text x="510" y="312" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="600" fill="#181613">RXD · белый</text>
+<text x="510" y="325" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#6b6459">от pin 2 OUTPUT SN74HC14N</text>
+
+<line x1="467" y1="347" x2="500" y2="347" stroke="#181613" stroke-width="3"/>
+<rect x="500" y="330" width="160" height="34" rx="6" fill="#b4b2a9" stroke="#181613" stroke-width="1"/>
+<text x="510" y="347" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="600" fill="#181613">GND · чёрный</text>
+<text x="510" y="360" font-family="Anthropic Sans, sans-serif" font-size="10" fill="#2C2C2A">к общей GND-шине</text>
+
+<rect x="20" y="400" width="640" height="72" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<rect x="32" y="408" width="86" height="18" rx="9" fill="#7a5c00"/>
+<text x="75" y="421" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="1" fill="#ffffff">ОПИСАНИЕ</text>
+<text x="128" y="421" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">CH340G — что это и зачем:</text>
+<text x="32" y="441" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">USB↔UART (TTL) переходник. Даёт Orange Pi u1 доступ к CRSF как к serial-порту,</text>
+<text x="32" y="457" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">питает инвертор от 3V3. Приём только (RXD), TXD не задействован — simplex.</text>
+
+<rect x="20" y="480" width="640" height="66" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<rect x="32" y="488" width="94" height="18" rx="9" fill="#7a5c00"/>
+<text x="79" y="501" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="1" fill="#ffffff">ПОЯСНЕНИЕ</text>
+<text x="136" y="501" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">CH340G — что куда:</text>
+<text x="32" y="521" font-family="Anthropic Sans, sans-serif" font-size="11"><tspan fill="#181613">USB-A → Orange Pi u1 (CRSF как serial)</tspan><tspan fill="#6b6459">   ·   </tspan><tspan fill="#185FA5">3V3 → VCC SN74HC14N (син.)</tspan></text>
+<text x="32" y="537" font-family="Anthropic Sans, sans-serif" font-size="11"><tspan fill="#181613">RXD ← OUTPUT SN74HC14N (бел.)</tspan><tspan fill="#6b6459">   ·   </tspan><tspan fill="#181613">GND → общая шина (чёрн.)</tspan><tspan fill="#6b6459">   ·   TXD/5V — skip</tspan></text>
+
+<rect x="20" y="554" width="640" height="110" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<text x="340" y="579" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="600" fill="#633806">Перед подключением проверить на плате CH340G</text>
+<line x1="40" y1="591" x2="640" y2="591" stroke="#BA7517" stroke-width="0.3" opacity="0.5"/>
+<circle cx="50" cy="611" r="3" fill="#4f8a1f"/>
+<text x="62" y="615" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#633806">S1 jumper</text>
+<text x="62" y="631" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#854F0B">между 5V и 3V3 ставится на положение 3V3</text>
+<text x="62" y="646" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#854F0B">(иначе на TXD/RXD будет 5V — спалит вход инвертора)</text>
+<circle cx="350" cy="611" r="3" fill="#4f8a1f"/>
+<text x="362" y="615" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#633806">TX-RX loopback jumper</text>
+<text x="362" y="631" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#854F0B">снят с заводской позиции</text>
+<text x="362" y="646" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#854F0B">(иначе UART зацикливается на сам себя)</text>
+</svg>

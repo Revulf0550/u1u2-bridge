@@ -1,0 +1,118 @@
+<svg width="100%" viewBox="0 0 680 906" xmlns="http://www.w3.org/2000/svg">
+<title>Модуль 2 — SN74HC14N инвертор стороны u2</title>
+<desc>Второй экземпляр SN74HC14N на стороне u2. Питание и земля напрямую с GPIO Orange Pi u2: VCC pin 14 от OPi pin 1, общая GND на плату Orange Pi u2 (не на пин). Вход pin 1 от OPi pin 26 (зелёный), выход pin 2 к ELRS-модулю (TX) pin 5 («белый»). Pins 3,5,7,9,11,13 — GND-шина.</desc>
+
+<rect x="0" y="0" width="680" height="906" fill="#f4f1e9"/>
+
+<text x="340" y="34" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="15" font-weight="500" fill="#181613">Модуль 2 — SN74HC14N инвертор стороны u2</text>
+<text x="340" y="54" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#6b6459">вертикальный DIP-14 · питание и земля от Orange Pi u2</text>
+<rect x="514" y="22" width="146" height="22" rx="4" fill="#bf4317"/>
+<text x="587" y="37" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#ffffff">→ Orange Pi u2</text>
+
+<g transform="translate(0,52)">
+<text x="340" y="24" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#6b6459">Выемка / точка pin 1 — вверху</text>
+<line x1="340" y1="32" x2="340" y2="60" stroke="#cdc4b4" stroke-width="0.5" stroke-dasharray="3 3"/>
+
+<rect x="290" y="70" width="100" height="400" rx="6" fill="#e6e1d2" stroke="#888780" stroke-width="0.75"/>
+<path d="M 328 70 A 12 12 0 0 0 352 70" fill="#f4f1e9" stroke="#888780" stroke-width="0.75"/>
+<text x="340" y="244" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="13" font-weight="500" fill="#181613">SN74HC14N</text>
+<text x="340" y="292" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">Schmitt</text>
+<text x="340" y="306" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">inverter</text>
+
+<rect x="278" y="103" width="14" height="14" fill="#4f8a1f"/>
+<text x="303" y="114" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">1</text>
+<rect x="278" y="155" width="14" height="14" fill="#ffffff" stroke="#181613" stroke-width="0.75"/>
+<text x="303" y="166" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">2</text>
+<rect x="278" y="207" width="14" height="14" fill="#181613"/>
+<text x="303" y="218" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">3</text>
+<rect x="278" y="259" width="14" height="14" fill="#b4b2a9"/>
+<text x="303" y="270" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">4</text>
+<rect x="278" y="311" width="14" height="14" fill="#181613"/>
+<text x="303" y="322" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">5</text>
+<rect x="278" y="363" width="14" height="14" fill="#b4b2a9"/>
+<text x="303" y="374" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">6</text>
+<rect x="278" y="415" width="14" height="14" fill="#181613"/>
+<text x="303" y="426" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">7</text>
+
+<rect x="388" y="103" width="14" height="14" fill="#1d63b0"/>
+<text x="377" y="114" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">14</text>
+<rect x="388" y="155" width="14" height="14" fill="#181613"/>
+<text x="377" y="166" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">13</text>
+<rect x="388" y="207" width="14" height="14" fill="#b4b2a9"/>
+<text x="377" y="218" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">12</text>
+<rect x="388" y="259" width="14" height="14" fill="#181613"/>
+<text x="377" y="270" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">11</text>
+<rect x="388" y="311" width="14" height="14" fill="#b4b2a9"/>
+<text x="377" y="322" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">10</text>
+<rect x="388" y="363" width="14" height="14" fill="#181613"/>
+<text x="377" y="374" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">9</text>
+<rect x="388" y="415" width="14" height="14" fill="#b4b2a9"/>
+<text x="377" y="426" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">8</text>
+
+<line x1="220" y1="110" x2="278" y2="110" stroke="#4f8a1f" stroke-width="3"/>
+<line x1="220" y1="162" x2="278" y2="162" stroke="#181613" stroke-width="5"/>
+<line x1="220" y1="162" x2="278" y2="162" stroke="#ffffff" stroke-width="3"/>
+<line x1="402" y1="110" x2="460" y2="110" stroke="#1d63b0" stroke-width="3"/>
+
+<rect x="30" y="90" width="190" height="44" rx="8" fill="#C0DD97" stroke="#4f8a1f" stroke-width="1"/>
+<text x="125" y="108" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#173404">Pin 1 · INPUT</text>
+<text x="125" y="124" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#27500A">от OPi pin 26 · зелёный</text>
+
+<rect x="30" y="142" width="190" height="44" rx="8" fill="#ffffff" stroke="#181613" stroke-width="1"/>
+<text x="125" y="160" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#181613">Pin 2 · OUTPUT</text>
+<text x="125" y="176" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#6b6459">к ELRS-модулю (TX) pin 5 · белый</text>
+
+<rect x="460" y="90" width="190" height="44" rx="8" fill="#B5D4F4" stroke="#1d63b0" stroke-width="1"/>
+<text x="555" y="108" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#042C53">Pin 14 · VCC</text>
+<text x="555" y="124" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#185FA5">от OPi pin 1 · синий</text>
+
+<line x1="278" y1="214" x2="240" y2="214" stroke="#181613" stroke-width="2"/>
+<line x1="278" y1="318" x2="240" y2="318" stroke="#181613" stroke-width="2"/>
+<line x1="278" y1="422" x2="240" y2="422" stroke="#181613" stroke-width="2"/>
+<line x1="240" y1="214" x2="240" y2="510" stroke="#181613" stroke-width="3"/>
+<line x1="402" y1="162" x2="440" y2="162" stroke="#181613" stroke-width="2"/>
+<line x1="402" y1="266" x2="440" y2="266" stroke="#181613" stroke-width="2"/>
+<line x1="402" y1="370" x2="440" y2="370" stroke="#181613" stroke-width="2"/>
+<line x1="440" y1="162" x2="440" y2="510" stroke="#181613" stroke-width="3"/>
+<line x1="240" y1="510" x2="440" y2="510" stroke="#181613" stroke-width="5"/>
+<line x1="340" y1="510" x2="340" y2="636" stroke="#181613" stroke-width="5"/>
+
+<rect x="222" y="208" width="46" height="14" fill="#f4f1e9"/>
+<text x="265" y="218" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">↓ GND</text>
+<rect x="222" y="312" width="46" height="14" fill="#f4f1e9"/>
+<text x="265" y="322" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">↓ GND</text>
+<rect x="412" y="156" width="46" height="14" fill="#f4f1e9"/>
+<text x="415" y="166" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">GND ↓</text>
+<rect x="412" y="260" width="46" height="14" fill="#f4f1e9"/>
+<text x="415" y="270" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">GND ↓</text>
+<rect x="412" y="364" width="46" height="14" fill="#f4f1e9"/>
+<text x="415" y="374" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#444441">GND ↓</text>
+
+<text x="265" y="270" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">NC</text>
+<text x="265" y="374" text-anchor="end" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">NC</text>
+<text x="415" y="218" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">NC</text>
+<text x="415" y="322" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">NC</text>
+<text x="415" y="426" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#6b6459">NC</text>
+
+<text x="500" y="498" font-family="Anthropic Sans, sans-serif" font-size="12" fill="#6b6459">GND-шина (одна перемычка)</text>
+
+<rect x="180" y="636" width="320" height="68" rx="8" fill="#b4b2a9" stroke="#181613" stroke-width="1"/>
+<text x="340" y="657" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="14" font-weight="500" fill="#181613">К общему GND</text>
+<text x="340" y="675" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#2C2C2A">breadboard GND-рейл · чёрный</text>
+<text x="340" y="693" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-size="11" font-weight="500" fill="#181613">→ на плату Orange Pi u2, не на пин</text>
+</g>
+
+<rect x="40" y="762" width="600" height="64" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<rect x="52" y="770" width="86" height="18" rx="9" fill="#7a5c00"/>
+<text x="95" y="783" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="1" fill="#ffffff">ОПИСАНИЕ</text>
+<text x="148" y="783" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">SN74HC14N (u2) — что это и зачем:</text>
+<text x="52" y="803" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">Второй экземпляр инвертора (как в Модуле 2 u1), на стороне Orange Pi u2.</text>
+<text x="52" y="819" font-family="Anthropic Sans, sans-serif" font-size="11" fill="#181613">Питание и земля — напрямую с GPIO Pi u2 (pin 1 = 3V3, pin 6 = GND), без CH340G.</text>
+
+<rect x="40" y="834" width="600" height="64" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.75"/>
+<rect x="52" y="842" width="94" height="18" rx="9" fill="#7a5c00"/>
+<text x="99" y="855" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" letter-spacing="1" fill="#ffffff">ПОЯСНЕНИЕ</text>
+<text x="156" y="855" font-family="Anthropic Sans, sans-serif" font-size="12" font-weight="500" fill="#181613">Инвертор u2 — что куда:</text>
+<text x="52" y="875" font-family="Anthropic Sans, sans-serif" font-size="11"><tspan fill="#27500A">pin 1 IN ← OPi u2 pin 26 (зел.)</tspan><tspan fill="#6b6459">   ·   </tspan><tspan fill="#181613">pin 2 OUT → ELRS-модуль (TX) pin 5 (бел.)</tspan></text>
+<text x="52" y="891" font-family="Anthropic Sans, sans-serif" font-size="11"><tspan fill="#185FA5">pin 14 VCC ← OPi u2 pin 1 (син.)</tspan><tspan fill="#6b6459">   ·   </tspan><tspan fill="#181613">GND-шина → плата Orange Pi u2 (не на пин)</tspan></text>
+</svg>

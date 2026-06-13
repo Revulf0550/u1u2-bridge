@@ -1,0 +1,269 @@
+<svg width="100%" viewBox="0 0 1040 1340" xmlns="http://www.w3.org/2000/svg">
+<title>Полная схема линка — Boxer → u1 ⇢ CPE710-радиомост + туннель WireGuard ⇢ u2 → дрон</title>
+<desc>Управление (CRSF, 420000 бод): Boxer S.PORT → SN74HC14N → CH340 → u1-pi → мини-свитч → PoE → CPE-AP ((5GHz PtP)) CPE-Client → PoE → u2-pi → SN74HC14N → ELRS-TX → RF → дрон. Видео: камера дрона → VTX → VRX → USB-граббер → u2-pi → радиомост → u1-pi → экран. Сеть 192.168.1.0/24 поверх (Режим 1) — WireGuard 10.8.0.0/24 через VPS.</desc>
+<defs>
+<marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#4f8a1f"/></marker>
+<marker id="av" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#6d4aa0"/></marker>
+<marker id="as" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#3f4a5a"/></marker>
+</defs>
+<rect x="0" y="0" width="1040" height="1340" fill="#f4f1e9"/>
+<text x="520" y="32" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="18" font-weight="600" fill="#181613">Полная схема линка — Boxer → u1 ⇢ CPE710-радиомост + туннель WireGuard ⇢ u2 → дрон</text>
+<text x="520" y="54" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="12" fill="#6b6459">управление (CRSF, 420000 бод) вперёд · видео обратно · радиомост CPE710 ~20–30 км (прямая видимость), поверх — туннель WireGuard</text>
+
+<!-- ZONE A u1 -->
+<rect x="16" y="72" width="1008" height="288" rx="10" fill="#fbf9f3" stroke="#cdc4b4" stroke-width="1"/>
+<text x="32" y="94" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="600" fill="#0d6e63">① Наземная станция · оператор (узел u1 · Pi 192.168.1.20)</text>
+
+<path d="M560 124 L560 110 L356 110 L356 124" fill="none" stroke="#1d63b0" stroke-width="2.2" stroke-linecap="round"/>
+<text x="458" y="105" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#185FA5">синий · 3V3 (CH340) → VCC p14 инвертора</text>
+
+<rect x="36" y="124" width="180" height="140" rx="8" fill="#ece6d8" stroke="#888780" stroke-width="0.6"/>
+<text x="126" y="146" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="500" fill="#181613">Boxer JR-bay</text>
+<text x="126" y="161" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#6b6459">источник CRSF</text>
+<text x="48" y="188" font-family="JetBrains Mono,monospace" font-size="10" fill="#27500A">p5 · S.PORT →</text>
+<text x="48" y="206" font-family="JetBrains Mono,monospace" font-size="10" fill="#181613">p4 · GND ← p12</text>
+<text x="48" y="224" font-family="JetBrains Mono,monospace" font-size="10" fill="#bf4317">p3 · VBAT 7.8В ⚠</text>
+<text x="48" y="242" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#6b6459">EdgeTX: Ext RF=CRSF (UART 420k)</text>
+
+<rect x="256" y="124" width="180" height="140" rx="8" fill="#ece6d8" stroke="#888780" stroke-width="0.6"/>
+<text x="346" y="152" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="500" fill="#181613">SN74HC14N</text>
+<text x="346" y="167" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#6b6459">Schmitt inverter</text>
+<text x="282" y="192" font-family="JetBrains Mono,monospace" font-size="10" fill="#27500A">1A ← вход</text>
+<text x="282" y="210" font-family="JetBrains Mono,monospace" font-size="10" fill="#181613">1Y → выход</text>
+<text x="282" y="228" font-family="JetBrains Mono,monospace" font-size="10" fill="#185FA5">VCC ← CH340 3V3</text>
+<text x="282" y="246" font-family="JetBrains Mono,monospace" font-size="9.5" fill="#181613">GND → крепёж u1</text>
+
+<rect x="476" y="124" width="180" height="140" rx="8" fill="#ece6d8" stroke="#888780" stroke-width="0.6"/>
+<text x="566" y="152" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="500" fill="#181613">CH340</text>
+<text x="566" y="167" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#6b6459">USB-UART · jumper 3V3</text>
+<text x="490" y="192" font-family="JetBrains Mono,monospace" font-size="10" fill="#185FA5">3V3 → инвертор VCC</text>
+<text x="490" y="210" font-family="JetBrains Mono,monospace" font-size="10" fill="#181613">RXD ← 1Y</text>
+<text x="490" y="228" font-family="JetBrains Mono,monospace" font-size="10" fill="#181613">GND ← p18</text>
+<text x="490" y="246" font-family="JetBrains Mono,monospace" font-size="9.5" fill="#b4b2a9">TXD · skip (simplex)</text>
+
+<rect x="696" y="124" width="184" height="140" rx="8" fill="#ece6d8" stroke="#0d6e63" stroke-width="1.2"/>
+<rect x="684" y="178" width="14" height="20" fill="#b4b2a9" stroke="#888780" stroke-width="0.5"/>
+<text x="788" y="150" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="500" fill="#0d6e63">u1-pi</text>
+<text x="788" y="165" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#6b6459">Orange Pi · наземный · .20</text>
+<text x="712" y="190" font-family="JetBrains Mono,monospace" font-size="10" fill="#6b6459">USB ← /dev/ttyUSB0</text>
+<text x="712" y="210" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#27500A">CRSF → радиомост ↓</text>
+<text x="712" y="228" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#6d4aa0">видео из сети → экран</text>
+<text x="712" y="248" font-family="JetBrains Mono,monospace" font-size="9.5" fill="#181613">GND-пины: p12, p18 + крепёж</text>
+
+<!-- signal wires A -->
+<line x1="216" y1="186" x2="252" y2="186" stroke="#4f8a1f" stroke-width="3" stroke-linecap="round" marker-end="url(#ag)"/>
+<text x="234" y="178" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#3B6D11">зел.</text>
+<line x1="436" y1="186" x2="476" y2="186" stroke="#181613" stroke-width="6" stroke-linecap="round"/><line x1="436" y1="186" x2="474" y2="186" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/><polygon points="479,186 469,181 469,191" fill="#181613"/>
+<text x="456" y="176" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#181613">1Y · белый</text>
+<line x1="656" y1="186" x2="682" y2="186" stroke="#b4b2a9" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="4 3"/><polygon points="682,186 674,182 674,190" fill="#b4b2a9"/>
+<text x="669" y="178" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">USB</text>
+
+<!-- GND bus A -->
+<line x1="126" y1="320" x2="788" y2="320" stroke="#181613" stroke-width="3" stroke-linecap="round"/>
+<text x="456" y="310" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="11" font-weight="600" fill="#6b6459">общая земля Orange Pi u1</text>
+<path d="M126 264 L126 320" stroke="#181613" stroke-width="2"/><circle cx="126" cy="320" r="4" fill="#181613"/>
+<path d="M346 264 L346 320" stroke="#181613" stroke-width="2"/><circle cx="346" cy="320" r="4" fill="#181613"/>
+<path d="M566 264 L566 320" stroke="#181613" stroke-width="2"/><circle cx="566" cy="320" r="4" fill="#181613"/>
+<path d="M788 264 L788 320" stroke="#181613" stroke-width="2"/><circle cx="788" cy="320" r="4" fill="#181613"/>
+<text x="126" y="340" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">Boxer p4 ← p12</text>
+<text x="346" y="340" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">инвертор → крепёж</text>
+<text x="566" y="340" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">CH340 ← p18</text>
+<text x="788" y="340" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">u1: p12·p18·крепёж</text>
+
+<rect x="900" y="124" width="110" height="120" rx="8" fill="#ECE3F7" stroke="#8a6fc0" stroke-width="0.6"/>
+<text x="955" y="178" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="11" font-weight="500" fill="#4a3270">экран /</text>
+<text x="955" y="194" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="11" font-weight="500" fill="#4a3270">очки</text>
+<text x="955" y="214" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#6d4aa0">видео (OSD)</text>
+<path d="M880 186 L898 186" stroke="#6d4aa0" stroke-width="2.5" marker-end="url(#av)"/>
+
+<!-- ZONE NET -->
+<rect x="16" y="372" width="1008" height="236" rx="10" fill="#fbf9f3" stroke="#cdc4b4" stroke-width="1"/>
+<text x="32" y="394" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="600" fill="#3f4a5a">② Радиомост CPE710 (локальная сеть 192.168.1.0/24) — туннель WireGuard показан ниже</text>
+
+<!-- u1-pi -> switch -->
+<path d="M718 264 L718 430 L708 430 L708 444" fill="none" stroke="#3f4a5a" stroke-width="2" marker-end="url(#as)"/>
+<text x="724" y="420" font-family="JetBrains Mono,monospace" font-size="8.5" fill="#3f4a5a">Ethernet (RJ45)</text>
+
+<!-- switch -->
+<rect x="636" y="444" width="148" height="56" rx="6" fill="#d2dae4" stroke="#3f4a5a" stroke-width="1"/>
+<text x="710" y="466" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="600" fill="#3f4a5a">мини-свитч</text>
+<text x="710" y="482" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#6b6459">5-port · обязателен на u1</text>
+<text x="710" y="495" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">RK3588 не линкуется с CPE напрямую</text>
+
+<!-- PoE-AP -->
+<rect x="536" y="444" width="84" height="56" rx="6" fill="#ece6d8" stroke="#888780" stroke-width="0.8"/>
+<text x="578" y="466" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" font-weight="500" fill="#181613">PoE-инж.</text>
+<text x="578" y="481" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">LAN→свитч</text>
+<text x="578" y="493" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">POE→CPE</text>
+
+<!-- CPE-AP -->
+<rect x="406" y="444" width="118" height="56" rx="6" fill="#d2dae4" stroke="#3f4a5a" stroke-width="1"/>
+<text x="465" y="466" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="11" font-weight="600" fill="#3f4a5a">CPE710 · AP</text>
+<text x="465" y="482" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#6b6459">192.168.1.2</text>
+<text x="465" y="494" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">5 ГГц · 20 МГц · ch149</text>
+
+<!-- radio gap -->
+<g stroke="#3f4a5a" stroke-width="2" fill="none"><path d="M398 458 q14 14 0 28"/><path d="M388 450 q22 22 0 44"/></g>
+<g stroke="#3f4a5a" stroke-width="2" fill="none"><path d="M296 458 q-14 14 0 28"/><path d="M306 450 q-22 22 0 44"/></g>
+<path d="M384 472 L310 472" stroke="#3f4a5a" stroke-width="1.6" stroke-dasharray="3 4"/>
+<text x="347" y="440" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" font-weight="600" fill="#3f4a5a">5 ГГц PtP</text>
+<text x="347" y="492" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">~20–30 км (LOS)</text>
+
+
+<!-- CPE-Client -->
+<rect x="170" y="444" width="118" height="56" rx="6" fill="#d2dae4" stroke="#3f4a5a" stroke-width="1"/>
+<text x="229" y="466" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="11" font-weight="600" fill="#3f4a5a">CPE710 · Client</text>
+<text x="229" y="482" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#6b6459">192.168.1.3</text>
+<text x="229" y="494" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">привязка к MAC AP</text>
+
+<!-- PoE-Client -->
+<rect x="72" y="444" width="86" height="56" rx="6" fill="#ece6d8" stroke="#888780" stroke-width="0.8"/>
+<text x="115" y="466" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" font-weight="500" fill="#181613">PoE-инж.</text>
+<text x="115" y="481" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">LAN→u2-pi</text>
+<text x="115" y="493" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#6b6459">POE→CPE</text>
+
+<!-- net links -->
+<line x1="636" y1="472" x2="620" y2="472" stroke="#3f4a5a" stroke-width="2"/>
+<line x1="536" y1="472" x2="524" y2="472" stroke="#3f4a5a" stroke-width="2"/>
+<line x1="170" y1="472" x2="158" y2="472" stroke="#3f4a5a" stroke-width="2"/>
+<path d="M72 472 L40 472 L40 560" stroke="#3f4a5a" stroke-width="2" fill="none"/>
+<text x="44" y="556" font-family="JetBrains Mono,monospace" font-size="8.5" fill="#3f4a5a">→ u2-pi (RJ45)</text>
+
+<!-- PC -->
+<rect x="636" y="540" width="148" height="40" rx="6" fill="#f3ead0" stroke="#7a5c00" stroke-width="0.8"/>
+<text x="710" y="558" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" font-weight="500" fill="#7a5c00">ПК настройки · .50</text>
+<text x="710" y="572" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#6b6459">опционально (любой ПК)</text>
+<line x1="710" y1="500" x2="710" y2="540" stroke="#7a5c00" stroke-width="1.6" stroke-dasharray="3 3"/>
+
+<!-- PoE warn -->
+<rect x="806" y="444" width="206" height="56" rx="6" fill="#F5C4B3" stroke="#bf4317" stroke-width="0.75"/>
+<text x="909" y="463" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#712B13">⚠ Pi / свитч — только в гнездо</text>
+<text x="909" y="477" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#712B13">LAN PoE-адаптера. В сам CPE</text>
+<text x="909" y="491" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#712B13">/ порт POE — НИКОГДА (спалит).</text>
+
+<!-- WireGuard tunnel schematic -->
+<rect x="92" y="514" width="520" height="28" rx="14" fill="#e8e6f6" stroke="#4b3f9e" stroke-width="1.2" stroke-dasharray="6 3"/>
+<circle cx="112" cy="528" r="5" fill="#4b3f9e"/><text x="124" y="531" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="#4b3f9e">u1 · 10.8.0.6</text>
+<circle cx="592" cy="528" r="5" fill="#4b3f9e"/><text x="582" y="531" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" font-weight="600" fill="#4b3f9e">u2 · 10.8.0.7</text>
+<text x="352" y="531" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" font-weight="600" fill="#4b3f9e">WireGuard через VPS · 10.8.0.0/24</text>
+<text x="352" y="556" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" font-style="italic" fill="#6b6459">логический VPN поверх физического радиомоста</text>
+<!-- range note -->
+<rect x="806" y="510" width="206" height="92" rx="6" fill="#d2dae4" fill-opacity="0.4" stroke="#3f4a5a" stroke-width="0.6"/>
+<text x="816" y="528" font-family="Anthropic Sans,sans-serif" font-size="10" font-weight="600" fill="#3f4a5a">Дальность</text>
+<text x="816" y="544" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#181613">Радиомост CPE710: до ~20–30 км</text>
+<text x="816" y="557" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#181613">(прямая видимость · до 18 миль по спец.)</text>
+<text x="816" y="575" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#181613">Туннель WireGuard сам дистанцию не</text>
+<text x="816" y="588" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#181613">ограничивает: через мост = дальность моста;</text>
+<text x="816" y="601" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#181613">поверх 4G/Starlink/интернета — не ограничена.</text>
+<!-- ZONE B u2 -->
+<rect x="16" y="616" width="1008" height="332" rx="10" fill="#fbf9f3" stroke="#cdc4b4" stroke-width="1"/>
+<text x="32" y="638" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="600" fill="#bf4317">③ Удалённый узел · у дрона (узел u2 · Pi 192.168.1.10 · headless)</text>
+
+<rect x="36" y="652" width="150" height="256" rx="8" fill="#ece6d8" stroke="#bf4317" stroke-width="1.2"/>
+<text x="111" y="690" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="13" font-weight="500" fill="#bf4317">u2-pi</text>
+<text x="111" y="705" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#6b6459">Orange Pi · .10</text>
+<circle cx="186" cy="730" r="5" fill="#4f8a1f"/><text x="178" y="734" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#27500A">p26·TX</text>
+<circle cx="186" cy="754" r="5" fill="#1d63b0"/><text x="178" y="758" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#185FA5">p1·3.3V</text>
+<circle cx="186" cy="778" r="5" fill="#bf4317"/><text x="178" y="782" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#bf4317">p2·+5V</text>
+<circle cx="186" cy="802" r="5" fill="#2f2f2d"/><text x="178" y="806" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#181613">p12·GND</text>
+<circle cx="186" cy="828" r="7" fill="none" stroke="#181613" stroke-width="2.2"/><text x="176" y="832" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#181613">крепёж</text>
+<rect x="178" y="868" width="14" height="18" rx="2" fill="#6d4aa0"/><text x="176" y="880" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#4a3270">USB·video0</text>
+
+<rect x="404" y="652" width="158" height="96" rx="8" fill="#ece6d8" stroke="#888780" stroke-width="0.6"/>
+<text x="483" y="676" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="500" fill="#181613">SN74HC14N</text>
+<text x="483" y="691" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#6b6459">инвертор</text>
+<text x="420" y="712" font-family="JetBrains Mono,monospace" font-size="9" fill="#27500A">1A ← p26</text>
+<text x="420" y="726" font-family="JetBrains Mono,monospace" font-size="9" fill="#181613">1Y → ELRS p5</text>
+<text x="420" y="740" font-family="JetBrains Mono,monospace" font-size="9" fill="#185FA5">VCC←p1 · GND→крепёж</text>
+
+<rect x="588" y="652" width="158" height="110" rx="8" fill="#C0DD97" stroke="#4f8a1f" stroke-width="0.6"/>
+<text x="667" y="676" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="500" fill="#173404">ELRS TX-модуль</text>
+<text x="667" y="691" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#3B6D11">RF-модуль ДУ</text>
+<text x="598" y="714" font-family="JetBrains Mono,monospace" font-size="9" fill="#27500A">pin5 ← сигнал</text>
+<text x="598" y="730" font-family="JetBrains Mono,monospace" font-size="9" fill="#bf4317">VCC ← p2 (+5V)</text>
+<text x="598" y="746" font-family="JetBrains Mono,monospace" font-size="9" fill="#181613">GND ← p12</text>
+
+<!-- drone -->
+<rect x="780" y="652" width="184" height="256" rx="8" fill="#ece6d8" stroke="#888780" stroke-width="0.6"/>
+<text x="872" y="690" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="14" font-weight="600" fill="#181613">ДРОН</text>
+<g stroke="#6b6459" stroke-width="2" fill="none"><line x1="845" y1="712" x2="899" y2="766"/><line x1="899" y1="712" x2="845" y2="766"/></g>
+<circle cx="845" cy="712" r="10" fill="#ece6d8" stroke="#888780"/><circle cx="899" cy="712" r="10" fill="#ece6d8" stroke="#888780"/><circle cx="845" cy="766" r="10" fill="#ece6d8" stroke="#888780"/><circle cx="899" cy="766" r="10" fill="#ece6d8" stroke="#888780"/>
+<rect x="858" y="725" width="28" height="28" rx="4" fill="#d2dae4" stroke="#3f4a5a"/>
+<rect x="800" y="800" width="144" height="40" rx="6" fill="#C0DD97" stroke="#4f8a1f" stroke-width="0.6"/><text x="872" y="824" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#173404">ELRS-приёмник (упр.)</text>
+<rect x="800" y="852" width="144" height="42" rx="6" fill="#ECE3F7" stroke="#8a6fc0" stroke-width="0.6"/><text x="872" y="870" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#4a3270">камера → VTX</text><text x="872" y="884" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#6d4aa0">аналоговое видео</text>
+
+<rect x="404" y="800" width="158" height="86" rx="8" fill="#ECE3F7" stroke="#8a6fc0" stroke-width="0.6"/>
+<text x="483" y="832" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="500" fill="#4a3270">USB видеограббер</text>
+<text x="483" y="848" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#6d4aa0">UVC · /dev/video0</text>
+
+<rect x="588" y="800" width="158" height="86" rx="8" fill="#ECE3F7" stroke="#8a6fc0" stroke-width="0.6"/>
+<text x="667" y="832" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="500" fill="#4a3270">VRX</text>
+<text x="667" y="848" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="9" fill="#6d4aa0">приём аналог. видео</text>
+
+<!-- control wires B -->
+<path d="M186 730 L375 730 L375 712 L402 712" fill="none" stroke="#4f8a1f" stroke-width="3" stroke-linecap="round" marker-end="url(#ag)"/>
+<text x="278" y="724" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8.5" fill="#3B6D11">CRSF (p26)</text>
+<line x1="562" y1="700" x2="588" y2="700" stroke="#181613" stroke-width="6" stroke-linecap="round"/><line x1="562" y1="700" x2="586" y2="700" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/><polygon points="591,700 581,695 581,705" fill="#181613"/><text x="575" y="690" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#181613">1Y · белый</text>
+<line x1="746" y1="700" x2="776" y2="700" stroke="#4f8a1f" stroke-width="2.5"/>
+<g stroke="#4f8a1f" stroke-width="2" fill="none"><path d="M752 690 q10 10 0 20"/></g>
+<path d="M790 740 L860 800" stroke="#4f8a1f" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#ag)"/>
+
+<!-- power wires B -->
+<path d="M186 754 L390 754 L390 740 L402 740" fill="none" stroke="#1d63b0" stroke-width="1.6" stroke-dasharray="4 3"/>
+<path d="M186 778 L570 778 L570 730 L588 730" fill="none" stroke="#bf4317" stroke-width="1.6" stroke-dasharray="4 3"/>
+<path d="M186 802 L228 802 L228 790 L576 790 L576 746 L588 746" fill="none" stroke="#2f2f2d" stroke-width="1.6" stroke-dasharray="4 3"/>
+
+<!-- video wires B -->
+<g stroke="#6d4aa0" stroke-width="2" fill="none"><path d="M792 854 q8 8 0 16"/></g>
+<path d="M786 862 L750 862" stroke="#6d4aa0" stroke-width="2" stroke-dasharray="3 4" marker-end="url(#av)"/>
+<text x="766" y="854" text-anchor="middle" font-family="Anthropic Sans,sans-serif" font-size="8" fill="#4a3270">RF</text>
+<line x1="588" y1="843" x2="566" y2="843" stroke="#6d4aa0" stroke-width="2.5" marker-end="url(#av)"/>
+<text x="575" y="836" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#4a3270">AV</text>
+<path d="M404 843 L260 843 L260 876 L192 876" stroke="#6d4aa0" stroke-width="2.5" marker-end="url(#av)"/>
+<text x="330" y="836" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#4a3270">USB (UVC)</text>
+
+<!-- drone RF labels -->
+
+
+<!-- ZONE C -->
+<rect x="16" y="960" width="1008" height="364" rx="10" fill="#fbf9f3" stroke="#cdc4b4" stroke-width="0.6"/>
+<text x="36" y="984" font-family="Anthropic Sans,sans-serif" font-size="14" font-weight="600" fill="#181613">Описание, поток данных, питание и земли</text>
+<line x1="36" y1="994" x2="1004" y2="994" stroke="#cdc4b4" stroke-width="0.5"/>
+
+<text x="36" y="1016" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="600" fill="#6b6459">Поток данных</text>
+<rect x="36" y="1026" width="12" height="3" fill="#4f8a1f"/><text x="56" y="1031" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#27500A">Управление (CRSF, 420000 бод):</text>
+<text x="56" y="1048" font-family="JetBrains Mono,monospace" font-size="9" fill="#444441">Boxer S.PORT → инвертор → CH340 → u1-pi → свитч → CPE-AP</text>
+<text x="56" y="1062" font-family="JetBrains Mono,monospace" font-size="9" fill="#444441"> ((5 ГГц)) CPE-Client → u2-pi → инвертор → ELRS-TX → RF → дрон</text>
+<rect x="36" y="1074" width="12" height="3" fill="#6d4aa0"/><text x="56" y="1079" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#4a3270">Видео:</text>
+<text x="56" y="1096" font-family="JetBrains Mono,monospace" font-size="9" fill="#444441">камера дрона → VTX → VRX → USB-граббер → u2-pi</text>
+<text x="56" y="1110" font-family="JetBrains Mono,monospace" font-size="9" fill="#444441"> → радиомост → u1-pi → экран оператора</text>
+
+<text x="36" y="1138" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="600" fill="#6b6459">Питание и земли</text>
+<text x="36" y="1158" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#444441"><tspan fill="#0d6e63" font-weight="600">u1:</tspan> инвертор VCC ← CH340 3V3, GND → крепёж · p12 → GND Boxer (RX) · p18 → GND CH340.</text>
+<text x="36" y="1176" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#444441"><tspan fill="#bf4317" font-weight="600">u2:</tspan> инвертор VCC ← p1 (3.3V), GND → крепёж · ELRS-TX: сигнал ← p26, +5V ← p2, GND ← p12.</text>
+<text x="36" y="1194" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#444441"><tspan font-weight="600">Сеть:</tspan> 192.168.1.0/24 (u1 .20, u2 .10, CPE .2/.3, ПК .50) · туннель WireGuard 10.8.0.0/24 через VPS (u1 .6, u2 .7).</text>
+
+<text x="36" y="1224" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="600" fill="#6b6459">Провода у инвертора</text>
+<rect x="36" y="1234" width="14" height="3.5" fill="#4f8a1f"/><text x="58" y="1239" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#27500A">зелёный — вход 1A (сигнал)</text>
+<rect x="320" y="1234" width="14" height="3.5" fill="#181613"/><text x="342" y="1239" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#181613">белый — выход 1Y (→ RXD u1 / ELRS p5 u2)</text>
+<rect x="36" y="1252" width="14" height="3.5" fill="#1d63b0"/><text x="58" y="1257" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#185FA5">синий — VCC 3V3 → pin 14</text>
+<rect x="320" y="1252" width="14" height="3.5" fill="#181613"/><text x="342" y="1257" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#181613">чёрный — GND → крепёжное отверстие</text>
+
+<line x1="640" y1="1004" x2="640" y2="1300" stroke="#cdc4b4" stroke-width="0.5"/>
+<text x="660" y="1016" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="600" fill="#7a5c00">Критические проверки</text>
+<rect x="660" y="1026" width="344" height="118" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+<text x="674" y="1046" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#854F0B">⚠ Boxer p3 VBAT 7.8В — не трогать</text>
+<text x="674" y="1065" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#854F0B">⚠ CH340 (u1) jumper → 3V3 (не 5V)</text>
+<text x="674" y="1084" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#854F0B">⚠ CH340 (u1) TX-RX loopback — снять</text>
+<text x="674" y="1103" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#854F0B">⚠ TXD не подключаем — simplex</text>
+<text x="674" y="1122" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#854F0B">⚠ Pi/свитч → только в LAN PoE-адаптера</text>
+<text x="674" y="1138" font-family="Anthropic Sans,sans-serif" font-size="9.5" font-weight="600" fill="#854F0B">⚠ свитч обязателен на u1; u2 — без свитча</text>
+
+<text x="660" y="1172" font-family="Anthropic Sans,sans-serif" font-size="12" font-weight="600" fill="#6b6459">Уточнить</text>
+<text x="660" y="1192" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#444441">• UART-узел u2: pin 26 → /dev/ttyS7 (UART7) — TX управления.</text>
+<text x="660" y="1207" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#444441">  Одностороннее: RX/телеметрии нет (RX → m1: 29/38).</text>
+<text x="660" y="1226" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#444441">• ELRS-TX / VRX / граббер — точные модели</text>
+<text x="660" y="1241" font-family="Anthropic Sans,sans-serif" font-size="10" fill="#444441">  и распиновку питания подтвердить.</text>
+<text x="660" y="1262" font-family="Anthropic Sans,sans-serif" font-size="10" font-style="italic" fill="#6b6459">CPE710: Bridge mode, 20 МГц, ch149,</text>
+<text x="660" y="1277" font-family="Anthropic Sans,sans-serif" font-size="10" font-style="italic" fill="#6b6459">TX 17–20 dBm, distance — по факту, DHCP off.</text>
+</svg>
