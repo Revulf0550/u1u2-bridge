@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U1↔U2 мост — карта адресов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4f1e9; --ink:#181613; --muted:#6b6459; --line:#cdc4b4;
+    --a:#0d6e63;      /* конец A / u1 */
+    --b:#bf4317;      /* конец B / u2 */
+    --cpe:#3f4a5a;    /* радио/CPE */
+    --pc:#7a5c00;     /* ПК */
+    --chip:#ece6d8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans",sans-serif;
+    line-height:1.45; padding:28px 20px; -webkit-font-smoothing:antialiased;
+  }
+  .card{max-width:860px;margin:0 auto;}
+  code,.mono{font-family:"IBM Plex Mono",monospace;}
+  .ip{font-family:"IBM Plex Mono",monospace;font-weight:600;letter-spacing:-.2px;white-space:nowrap;}
+
+  header{border-bottom:3px solid var(--ink);padding-bottom:12px;margin-bottom:20px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  header h1{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:20px;letter-spacing:-.5px;}
+  header .sub{color:var(--muted);font-size:12.5px;font-family:"IBM Plex Mono",monospace;}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;
+    border:1.5px solid var(--ink);padding:3px 8px;border-radius:2px;}
+
+  h2{font-family:"IBM Plex Mono",monospace;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--muted);margin:26px 0 10px;display:flex;align-items:center;gap:8px;}
+  h2::before{content:"";flex:0 0 14px;height:2px;background:var(--ink);}
+
+  /* device cards */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .dev{border:1.5px solid var(--line);border-radius:6px;padding:14px 15px;background:#fbf9f3;position:relative;overflow:hidden;}
+  .dev::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;}
+  .dev.u1::before{background:var(--a);}
+  .dev.u2::before{background:var(--b);}
+  .dev h3{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .end{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:700;color:#fff;padding:2px 6px;border-radius:3px;}
+  .end.a{background:var(--a);} .end.b{background:var(--b);}
+  .role{color:var(--muted);font-size:12.5px;margin:2px 0 10px;}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px dotted var(--line);font-size:13px;}
+  .row .k{color:var(--muted);}
+  .row .v{text-align:right;}
+
+  /* topology */
+  .topo{border:1.5px solid var(--line);border-radius:6px;padding:18px 16px;background:#fbf9f3;}
+  .topo-flow{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;}
+  .zone{flex:1 1 230px;border:1.5px dashed var(--line);border-radius:6px;padding:12px;}
+  .zone .zh{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;
+    display:flex;align-items:center;gap:7px;font-weight:700;}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .dot.a{background:var(--a);} .dot.b{background:var(--b);}
+  .node{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--chip);border:1px solid var(--line);
+    border-radius:4px;padding:5px 8px;margin:5px 0;display:flex;justify-content:space-between;gap:8px;}
+  .node b{font-weight:600;}
+  .radio{flex:0 0 auto;align-self:center;text-align:center;font-family:"IBM Plex Mono",monospace;
+    font-size:11px;color:var(--cpe);padding:0 4px;}
+  .radio .wave{font-size:18px;letter-spacing:-2px;}
+  .switch-lbl{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);margin-top:6px;}
+
+  /* nets + rules */
+  .nets .row, .rules li{font-size:13px;}
+  .nets{border:1.5px solid var(--line);border-radius:6px;overflow:hidden;}
+  .nets .nrow{display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 14px;border-top:1px solid var(--line);align-items:center;}
+  .nets .nrow:first-child{border-top:0;background:#efeade;}
+  .nets .nrow .lbl{font-size:12.5px;}
+  .nets .nrow .net{font-family:"IBM Plex Mono",monospace;font-weight:600;}
+  .temp{color:var(--b);}
+
+  .rules{list-style:none;border:1.5px solid var(--line);border-radius:6px;background:#fbf9f3;padding:8px 6px;}
+  .rules li{padding:7px 12px 7px 30px;position:relative;border-top:1px dotted var(--line);}
+  .rules li:first-child{border-top:0;}
+  .rules li::before{content:"›";position:absolute;left:12px;top:6px;font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--ink);}
+  .warn{color:var(--b);font-weight:600;}
+  .ok{color:var(--a);font-weight:600;}
+
+  footer{margin-top:22px;border-top:1.5px solid var(--line);padding-top:10px;color:var(--muted);
+    font-family:"IBM Plex Mono",monospace;font-size:11px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+
+  @media (max-width:620px){.grid{grid-template-columns:1fr}}
+  @media print{
+    body{background:#fff;padding:0;font-size:12px}
+    .dev,.topo,.rules{background:#fff}
+    header,h2::before{ -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    *{ -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <header>
+    <div>
+      <h1>U1 ↔ U2 — карта адресов и подключений</h1>
+      <div class="sub">беспроводной мост · Orange Pi 5 + CPE710 · Этап C (Режим №2)</div>
+    </div>
+    <div class="tag">SSH key: ~/.ssh/u1u2</div>
+  </header>
+
+  <h2>Узлы</h2>
+  <div class="grid">
+
+    <div class="dev u1">
+      <h3>Pi-u1 <span class="end a">КОНЕЦ A</span></h3>
+      <div class="role">RX + HDMI-монитор (сторона пульта)</div>
+      <div class="row"><span class="k">Мост (Режим №2)</span><span class="v ip">192.168.1.20</span></div>
+      <div class="row"><span class="k">Туннель WG (Режим №1)</span><span class="v ip">10.8.0.6</span></div>
+      <div class="row"><span class="k">SSH</span><span class="v mono" style="font-size:11.5px">ubuntu@10.8.0.6</span></div>
+      <div class="row"><span class="k">Юниты</span><span class="v mono" style="font-size:11.5px">crsf-bridge@p1 · video-rx</span></div>
+      <div class="row"><span class="k">Serial</span><span class="v mono" style="font-size:11.5px">/dev/ttyUSB0 (CH340) ← Boxer</span></div>
+      <div class="row"><span class="k">Подключение</span><span class="v">→ свитч → CPE-AP</span></div>
+    </div>
+
+    <div class="dev u2">
+      <h3>Pi-u2 <span class="end b">КОНЕЦ B</span></h3>
+      <div class="role">TX (выносная база: ELRS + кодирование видео)</div>
+      <div class="row"><span class="k">Мост (Режим №2)</span><span class="v ip">192.168.1.10</span></div>
+      <div class="row"><span class="k">Туннель WG (Режим №1)</span><span class="v ip">10.8.0.7</span></div>
+      <div class="row"><span class="k">SSH</span><span class="v mono" style="font-size:11.5px">ubuntu@10.8.0.7</span></div>
+      <div class="row"><span class="k">Юниты</span><span class="v mono" style="font-size:11.5px">crsf-bridge@elrs · video-tx</span></div>
+      <div class="row"><span class="k">Serial</span><span class="v mono" style="font-size:11.5px">/dev/ttyS7 (UART7) → ELRS</span></div>
+      <div class="row"><span class="k">Подключение</span><span class="v">→ LAN PoE CPE-Client</span></div>
+    </div>
+
+  </div>
+
+  <h2>CPE710 и ПК</h2>
+  <div class="nets">
+    <div class="nrow"><span class="lbl"><b>CPE-AP</b> (master, радио-точка доступа) — конец A, рядом с Pi-u1</span><span class="net ip">192.168.1.2</span></div>
+    <div class="nrow"><span class="lbl"><b>CPE-Client</b> (приёмник) — конец B, рядом с Pi-u2</span><span class="net ip">192.168.1.3</span></div>
+    <div class="nrow"><span class="lbl"><b>ПК ARDOR</b> (управление, Claude Code) — конец A, в свитч</span><span class="net ip">192.168.1.50</span></div>
+    <div class="nrow"><span class="lbl">Маска подсети везде</span><span class="net ip">255.255.255.0 (/24)</span></div>
+  </div>
+
+  <h2>Схема (после переезда)</h2>
+  <div class="topo">
+    <div class="topo-flow">
+      <div class="zone">
+        <div class="zh"><span class="dot a"></span>Конец A — свитч</div>
+        <div class="node"><span>ПК ARDOR</span><b class="ip">.50</b></div>
+        <div class="node"><span>Pi-u1</span><b class="ip">.20</b></div>
+        <div class="node"><span>CPE-AP (LAN PoE)</span><b class="ip">.2</b></div>
+        <div class="switch-lbl">всё в один свитч</div>
+      </div>
+      <div class="radio">
+        <div class="wave">)))&nbsp;(((</div>
+        <div>радио<br>PtP</div>
+      </div>
+      <div class="zone">
+        <div class="zh"><span class="dot b"></span>Конец B</div>
+        <div class="node"><span>CPE-Client (LAN PoE)</span><b class="ip">.3</b></div>
+        <div class="node"><span>Pi-u2</span><b class="ip">.10</b></div>
+        <div class="switch-lbl">Pi-u2 — прямо в LAN PoE-адаптера</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Подсети</h2>
+  <div class="nets">
+    <div class="nrow"><span class="lbl">Мост — прямой, через CPE710 (Режим №2)</span><span class="net ip">192.168.1.0/24</span></div>
+    <div class="nrow"><span class="lbl">Туннель WireGuard — через интернет (Режим №1)</span><span class="net ip">10.8.0.0/24</span></div>
+    <div class="nrow"><span class="lbl temp">Домашний роутер — ВРЕМЕННО, уйдёт после переезда</span><span class="net ip temp">192.168.31.0/24</span></div>
+  </div>
+
+  <h2>Памятка (не перепутать)</h2>
+  <ul class="rules">
+    <li><span class="warn">Pi и ПК НИКОГДА не втыкаются в сам CPE.</span> Только в гнездо <code>LAN</code> PoE-адаптера (или в свитч).</li>
+    <li>Гнездо <code>POE</code> PoE-адаптера → в сам CPE (питание+данные, уже стоит). Гнездо <code>LAN</code> → твоя техника.</li>
+    <li><b>Конец A:</b> свитч ← Pi-u1 + ПК + <code>LAN</code> от CPE-AP.</li>
+    <li><b>Конец B:</b> Pi-u2 → <code>LAN</code> от CPE-Client (напрямую, свитч не нужен).</li>
+    <li>Две Pi — на <b>разных</b> концах радио, иначе трафик пойдёт по проводу, а не через мост.</li>
+    <li>AP/Client для данных симметричны (мост прозрачный). Принятая раскладка: <b>AP у u1, Client у u2</b> — держись её.</li>
+    <li><span class="ok">После переезда:</span> ПК <code>.50</code> ssh-ит обе Pi по <code>192.168.1.x</code> — u2 через радио, мост прозрачный.</li>
+    <li><span class="ok">Доступ не теряется:</span> на Pi живут оба адреса (мост <code>.20/.10</code> + временный домашний DHCP), статика переживает ребут.</li>
+  </ul>
+
+  <footer>
+    <span>u1u2-bridge · cheatsheet</span>
+    <span>состояние: 2026-06-04 · CPE-адреса задаются, cutover впереди</span>
+  </footer>
+
+</div>
+</body>
+</html>
