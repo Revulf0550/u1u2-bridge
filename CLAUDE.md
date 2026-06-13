@@ -90,7 +90,7 @@
 
 ### Архитектурный roadmap для подключения пульта
 
-Два варианта подключения пульта: №1 CRSF через JR-bay (текущий), №2 USB-HID (план B, «будем делать»). Детали и статусы — в `docs/roadmap/`: joystick-2-usb-hid.md, ctrl-channel.md, jitter-latency-tuning.md, production-hardening.md.
+Два варианта подключения пульта: №1 CRSF через JR-bay (текущий), №2 USB-HID (план B, «будем делать»). Детали и статусы — в `docs/roadmap/`: joystick-2-usb-hid.md, ctrl-channel.md, jitter-latency-tuning.md, production-hardening.md, rx-telemetry.md.
 
 ### GStreamer — низкая латентность
 
