@@ -1,7 +1,7 @@
 [project]
 name = "u1u2-bridge"
 version = "0.1.0"
-description = "Wireless replacement for 8-wire cable between FPV ground units U1 and U2 (Orange Pi 5 + CPE710 + WireGuard)"
+description = "Wireless CRSF control + video link between FPV ground units U1 and U2 (Orange Pi 5 + CPE710 + WireGuard)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
