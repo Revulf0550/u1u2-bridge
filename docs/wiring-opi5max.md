@@ -72,6 +72,8 @@ python3 -c 'import serial,time; ser=serial.Serial("/dev/ttyS7",baudrate=420000,t
 
 Если `in_waiting=7` и `got 7 bytes: b'TEST123'` — пинаут подтверждён, можно подключать ELRS. Если `in_waiting >> 7` (буфер забит мусором) — перемычка не контачит, попробуй другую перемычку (Dupont часто бывают с обрывом внутри обжима). Если `in_waiting=0` — варианты: overlay не загружен (проверь `sudo grep -ri uart7 /sys/kernel/debug/pinctrl/ | grep pinmux-pins`), overlay не m1 (на m2 не работает), **или BT-стек не отключён** (см. notice выше).
 
+> **Деплой: half-duplex single-wire (трек D, 2026-06-14).** Эта таблица показывает раздельные TX/RX (pin 29/38) — это ОТМЕНЁННОЕ full-duplex допущение. Реально CRSF к Ranger Micro идёт по одному проводу (инвертированный half-duplex). **Не паять по этой таблице** до пересмотра под half-duplex; узел и план — `docs/roadmap/rx-telemetry.md`.
+
 | Pin Pi | Имя         | → ELRS TX модуль   | Назначение                              | Статус |
 |-------:|-------------|--------------------|------------------------------------------|--------|
 |      2 | 5V          | +5V                | Питание модуля (~100-300 мА)            | [ ]    |
