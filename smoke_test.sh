@@ -23,12 +23,12 @@ fi
 # Peer IP — противоположная Pi в /24 подсети CPE710. Симметрично install.sh.
 if [[ "$ROLE" == "u1" ]]; then
   PEER_IP="192.168.1.10"
-  PEER_IP_WG="10.10.0.2"
+  PEER_IP_WG="${PEER_IP_WG:-10.8.0.7}"
   VIDEO_UNIT="video-rx.service"
   CRSF_INST="p1"
 else
   PEER_IP="192.168.1.20"
-  PEER_IP_WG="10.10.0.1"
+  PEER_IP_WG="${PEER_IP_WG:-10.8.0.6}"
   VIDEO_UNIT="video-tx.service"
   CRSF_INST="elrs"
 fi
