@@ -213,6 +213,9 @@ if [[ "$MODE" == "drone" ]]; then
   install -m 0644 "$REPO/common/crsf.py" /opt/u1u2-bridge/common/
   if [[ "$ROLE" == "u1" ]]; then
     install -m 0755 "$REPO/common/joystick_to_crsf.py" /opt/u1u2-bridge/common/
+    install -m 0644 "$REPO/common/channel_map.py" /opt/u1u2-bridge/common/
+    install -m 0644 "$REPO/common/crsf_telemetry.py" /opt/u1u2-bridge/common/
+    install -m 0644 "$REPO/common/telemetry_logger.py" /opt/u1u2-bridge/common/
   fi
 fi
 
