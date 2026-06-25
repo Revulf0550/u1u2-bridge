@@ -40,6 +40,32 @@
   .state b{color:var(--ink);font-weight:600}
   .state span{padding:2px 0}
 
+  /* ---- known-good nodes ---- */
+  .nodes{margin:0 0 16px;border:1px solid var(--line);border-radius:7px;
+    background:var(--card);padding:12px 14px}
+  .nodes-h{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.1em;color:var(--ink);margin-bottom:9px}
+  .nodes-h span{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:10.5px}
+  .nodetab{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+  .nodetab th{text-align:left;color:var(--muted);font-weight:500;font-size:10px;
+    text-transform:uppercase;letter-spacing:.08em;padding:3px 10px 5px 0;border-bottom:1px solid var(--line)}
+  .nodetab td{padding:4px 10px 4px 0;border-bottom:1px solid #00000008}
+  .nodetab td:first-child{color:var(--coral);font-weight:600}
+  .nodetab td:nth-child(2){color:var(--ink)}
+  .nodetab td:nth-child(3){color:var(--teal);font-weight:600}
+  .nodetab td:last-child{color:var(--muted);font-size:10.5px}
+  .nodes-chk{margin-top:9px;font-size:11px;color:var(--muted);line-height:1.45}
+  .nodes-chk code{font-family:"IBM Plex Mono",monospace;background:#0000000d;
+    padding:1px 5px;border-radius:3px;color:var(--ink);font-size:10.5px}
+
+  /* ---- pitfall banner ---- */
+  .pitfall{margin:0 0 18px;padding:11px 14px;border-radius:7px;
+    background:var(--coral-bg);border:1px solid var(--coral);font-size:12px;line-height:1.5}
+  .pitfall b{color:var(--coral)}
+  .pitfall code{font-family:"IBM Plex Mono",monospace;background:#0000000d;
+    padding:1px 5px;border-radius:3px;font-size:11px;color:var(--ink)}
+  .pitfall i{color:var(--muted);font-style:italic}
+
   /* ---- panels ---- */
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:7px;
@@ -133,6 +159,27 @@
     <span>сервисы u1: <b>crsf-bridge@p1 · video-rx · wg-quick@wg0</b></span>
     <span>сервисы u2: <b>crsf-bridge@elrs · video-tx · wg-quick@wg0</b></span>
     <span>u2 UART: <b>/dev/ttyS7 = UART7 m2 → pin 26</b> (TX, одностор.)</span>
+  </div>
+
+  <!-- ===== known-good узлы: IP + MAC ===== -->
+  <div class="nodes">
+    <div class="nodes-h">Known-good узлы · <span>192.168.1.0/24 (статика — не меняется в любой сети; MAC зашит в железо)</span></div>
+    <table class="nodetab">
+      <thead><tr><th>IP</th><th>MAC</th><th>узел</th><th>где</th></tr></thead>
+      <tbody>
+        <tr><td>192.168.1.2</td><td>8c-86-dd-7a-31-b6</td><td>CPE710 · AP (master)</td><td>конец A</td></tr>
+        <tr><td>192.168.1.3</td><td>8c-86-dd-05-0a-6e</td><td>CPE710 · Client (slave)</td><td>конец B (за радио)</td></tr>
+        <tr><td>192.168.1.20</td><td>c0-74-2b-f9-01-46</td><td>u1-pi · RX</td><td>конец A</td></tr>
+        <tr><td>192.168.1.10</td><td>c0-74-2b-fa-a4-ce</td><td>u2-pi · TX</td><td>конец B (за радио)</td></tr>
+        <tr><td>192.168.1.50</td><td>—</td><td>ПК · диагностика (любой)</td><td>конец A, сбоку</td></tr>
+      </tbody>
+    </table>
+    <div class="nodes-chk">Сверка в поле: <code>1..254 | %{ ping -n 1 -w 200 192.168.1.$_ | Out-Null }; arp -a -N &lt;IP_ПК&gt; | Select-String "динамич"</code> — прогревает ARP и показывает все живые MAC разом.</div>
+  </div>
+
+  <!-- ===== грабли измерения ===== -->
+  <div class="pitfall">
+    <b>⚠ Мерить серией, не одиночным пингом.</b> <code>ping -n 1/-n 2</code> по «холодному» ARP даёт <b>ложные timeout</b> — особенно для узлов за радиомостом (.3, .10): ARP-резолв через два CPE + воздух не успевает. Всегда <code>ping -n 4</code>+, либо пинг с самой Pi (<code>ping -c 10</code>). «<i>Ответ от &lt;IP_ПК&gt;: Заданный узел недоступен</i>» = это ПК сам себе говорит «MAC не нашёл», <b>не</b> ответ устройства. <b>Не объявлять железо мёртвым по 1–2 пакетам.</b>
   </div>
 
   <div class="grid">
