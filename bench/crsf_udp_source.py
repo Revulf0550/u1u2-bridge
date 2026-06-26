@@ -11,8 +11,8 @@
 
 Пример::
 
-    python -m bench.crsf_udp_source --peer 10.8.0.7:14550 --mode sweep
-    python -m bench.crsf_udp_source --peer 10.8.0.7:14550 --mode arm-toggle --rate 250
+    python -m bench.crsf_udp_source --peer 10.8.0.7:14552 --mode sweep
+    python -m bench.crsf_udp_source --peer 10.8.0.7:14552 --mode arm-toggle --rate 250
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ def main() -> int:
     p.add_argument(
         "--peer",
         required=True,
-        help="ip:port моста на u2, например 10.8.0.7:14550",
+        help="ip:port моста на u2, например 10.8.0.7:14552",
     )
     p.add_argument("--mode", choices=sorted(_MODES), default="sweep")
     p.add_argument("--rate", type=float, default=250.0, help="частота кадров, Hz")
