@@ -122,11 +122,11 @@
 | #4 | smoke проверяет `mpph264enc` (энкодер) на u1 (роль только декод) | `[RAW]` | работает (один пакет), сем. неточно |
 | #7 | js0/evdev рассинхрон — `DEVICE` в `joystick.env` vs реальный узел | `[PI-TODO]` | evtest-гейт |
 | #8 | незамапленный канал = 992 | `[MEM]` | — |
-| CI-divergence | `make verify` без shellcheck (слабее `verify.ps1`) | `[RAW]` | добить Makefile shellcheck-целью ИЛИ канон = verify.ps1 |
+| CI-divergence | `make verify` без shellcheck (слабее `verify.ps1`) | `[RAW]` | ✅ РЕШЕНО `35a37af` — shellcheck-цель в Makefile + в зависимостях verify |
 | static-scope | bench/hardware вне ruff/mypy | `[RAW]` | **ЗАКРЫТО как by-design** (см. ниже) |
-| ufw-asymmetry | `§7c` даёт u1 video-allow (5600), не CRSF-allow (14552) | `[RAW]` | латентно (u1 ufw inactive) |
-| transport-default | `:56` `TRANSPORT=tunnel` дефолт; поле = direct | `[RAW]` | операторский caveat |
-| bench-doc-stale | докстринги bench/hardware: `192.168.31.100` (чужая подсеть, 3 файла), порт `14550` в `crsf_udp_source.py` (канон 14552) | `[RAW]` | комменты, рантайма не трогает *(НОВОЕ)* |
+| ufw-asymmetry | `§7c` даёт u1 video-allow (5600), не CRSF-allow (14552) | `[RAW]` | by-design: каждый узел открывает порт того, что ПРИНИМАЕТ (u2←CRSF 14552, u1←видео 5600). u1 CRSF-allow не нужен до обратной телеметрии (трек D), тогда добавить |
+| transport-default | `:56` `TRANSPORT=tunnel` дефолт; поле = direct | `[RAW]` | by-design: дефолт tunnel осознан, защищён авто-SKIP_NETPLAN (`:63`) + объяснён в шапке install.sh. Оператор поля задаёт `TRANSPORT=direct` явно |
+| bench-doc-stale | докстринги bench/hardware: `192.168.31.100` (чужая подсеть, 3 файла), порт `14550` в `crsf_udp_source.py` (канон 14552) | `[RAW]` | ✅ РЕШЕНО `2b7e365` (hardware → `<u2-pi-ip>`) + `951f7ef` (порт 14552) |
 
 **P3-static-scope — закрыто by-design:** `loopback.py:62` `[RAW]` прямым текстом
 («инструмент, не production-код»); чистые хелперы `compute_echo_deadline`/
