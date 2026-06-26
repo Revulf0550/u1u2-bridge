@@ -31,11 +31,13 @@ if [[ "$ROLE" == "u1" ]]; then
   PEER_IP="192.168.1.10"
   PEER_IP_WG="${PEER_IP_WG:-10.8.0.7}"
   VIDEO_UNIT="video-rx.service"
+  RKMPP_ELEM="mppvideodec"
   CRSF_INST="p1"
 else
   PEER_IP="192.168.1.20"
   PEER_IP_WG="${PEER_IP_WG:-10.8.0.6}"
   VIDEO_UNIT="video-tx.service"
+  RKMPP_ELEM="mpph264enc"
   CRSF_INST="elrs"
 fi
 
@@ -122,12 +124,14 @@ fi
 
 section "RKMPP (hardware H.264)"
 
-# gst-inspect-1.0 mpph264enc проверяет что плагин из gstreamer1.0-rockchip1
-# реально доступен. Без него видео-пайплайн упадёт в Restart-loop.
-if gst-inspect-1.0 mpph264enc >/dev/null 2>&1; then
-  pass "mpph264enc доступен"
+# Проверяем элемент RKMPP под роль: u1 декодирует (mppvideodec в video_rx.sh),
+# u2 кодирует (mpph264enc в video_tx.sh). Оба из gstreamer1.0-rockchip1, но
+# проверяем именно используемый ролью — иначе на u1 битый декодер дал бы
+# ложный PASS. Без нужного элемента видео-пайплайн упадёт в Restart-loop.
+if gst-inspect-1.0 "$RKMPP_ELEM" >/dev/null 2>&1; then
+  pass "$RKMPP_ELEM доступен"
 else
-  fail "mpph264enc не найден — это не joshua-riek образ? \`apt install gstreamer1.0-rockchip1\`"
+  fail "$RKMPP_ELEM не найден — это не joshua-riek образ? \`apt install gstreamer1.0-rockchip1\`"
 fi
 
 section "network: peer через CPE710"
