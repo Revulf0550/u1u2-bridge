@@ -119,7 +119,7 @@
 |---|---|---|---|
 | #1 | RKMPP-чек гейтится `MODE==bench` (`install.sh:102`) | `[RAW]` | — (by design) |
 | #3 | `netplan apply\|\|true` (`:200`) — упавший netplan не оборвёт install | `[RAW]` | минор |
-| #4 | smoke проверяет `mpph264enc` (энкодер) на u1 (роль только декод) | `[RAW]` | работает (один пакет), сем. неточно |
+| #4 | smoke проверяет `mpph264enc` (энкодер) на u1 (роль только декод) | `[RAW]` | ✅ РЕШЕНО `78bd58c` — `RKMPP_ELEM` по роли (u1 `mppvideodec` / u2 `mpph264enc`). Был не ложный FAIL, а ложный PASS: битый декодер на u1 прошёл бы чек энкодера, пропустив падение `video-rx` |
 | #7 | js0/evdev рассинхрон — `DEVICE` в `joystick.env` vs реальный узел | `[PI-TODO]` | evtest-гейт |
 | #8 | незамапленный канал = 992 | `[MEM]` | — |
 | CI-divergence | `make verify` без shellcheck (слабее `verify.ps1`) | `[RAW]` | ✅ РЕШЕНО `35a37af` — shellcheck-цель в Makefile + в зависимостях verify |
@@ -150,8 +150,9 @@ API из `common` (`build_rc_frame`, channel-константы), напряму
 4. **P2-smoke-wg** — `smoke_test.sh` 10.10→10.8 (или параметризовать). Не за гейтом.
 5. **P2-smoke-mode-blind** — MODE-осведомлённость в `smoke_test.sh`. Не за гейтом.
 6. **P2-deployment-stale** — баннер/переписать `docs/DEPLOYMENT.md`. Не за гейтом.
-7. **P3-пачка** — CI-divergence (shellcheck-цель), ufw-asymmetry (u1 CRSF-allow),
-   bench-doc-stale (докстринги), transport-default (док-caveat), #4 (декодер-чек u1).
+7. **P3-пачка** — ufw-asymmetry (u1 CRSF-allow, до трека D). Остальное закрыто:
+   CI-divergence `35a37af`, bench-doc-stale `2b7e365`+`951f7ef`, transport-default
+   (by-design), #4 декодер-чек u1 `78bd58c`.
 
 ---
 
