@@ -95,7 +95,7 @@
 #### P2-deployment-stale — `docs/DEPLOYMENT.md` без баннера, насквозь стале *(НОВОЕ)*
 - **СТАТУС:** РЕШЕНО баннером (коммит `9cc4efa`). Уточнение: не «насквозь
   стале» — док гибрид, §4 (`install.sh`) валидный канон, стале только ручные
-  env/udev-шаги §5/§6. Тело на канон не переписано — backlog.
+  env/udev-шаги §5/§6. Тело переписано на канон коммитом c4aced9.
 - `[RAW-grep]` активный runbook **без депрекейт-дисклеймера**, противоречит канону
   `install.sh` по всем осям:
   - инстансы `crsf-bridge@tx1/tx2` (канон `p1/elrs`);
@@ -149,7 +149,7 @@ API из `common` (`build_rc_frame`, channel-константы), напряму
 3. **P2-planB** — добавить 3 модуля в `install.sh §5`. Рестарт CRSF — **за гейтом**.
 4. **P2-smoke-wg** — `smoke_test.sh` 10.10→10.8 (или параметризовать). Не за гейтом.
 5. **P2-smoke-mode-blind** — MODE-осведомлённость в `smoke_test.sh`. Не за гейтом.
-6. **P2-deployment-stale** — баннер/переписать `docs/DEPLOYMENT.md`. Не за гейтом.
+6. **P2-deployment-stale** — ✅ ЗАКРЫТО: баннер 9cc4efa + тело переписано c4aced9.
 7. **P3-пачка** — ufw-asymmetry (u1 CRSF-allow, до трека D). Остальное закрыто:
    CI-divergence `35a37af`, bench-doc-stale `2b7e365`+`951f7ef`, transport-default
    (by-design), #4 декодер-чек u1 `78bd58c`.
