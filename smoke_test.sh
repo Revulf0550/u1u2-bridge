@@ -20,6 +20,12 @@ if [[ "$ROLE" != "u1" && "$ROLE" != "u2" ]]; then
   exit 1
 fi
 
+MODE="${MODE:-bench}"
+if [[ "$MODE" != "bench" && "$MODE" != "drone" ]]; then
+  echo "Usage: MODE={bench|drone} $0 {u1|u2}" >&2
+  exit 1
+fi
+
 # Peer IP — противоположная Pi в /24 подсети CPE710. Симметрично install.sh.
 if [[ "$ROLE" == "u1" ]]; then
   PEER_IP="192.168.1.10"
@@ -31,6 +37,20 @@ else
   PEER_IP_WG="${PEER_IP_WG:-10.8.0.6}"
   VIDEO_UNIT="video-tx.service"
   CRSF_INST="elrs"
+fi
+
+# Управляющий юнит зависит от MODE: drone+u1 = joystick-to-crsf (plan B, USB-HID,
+# без UART), иначе crsf-bridge@<inst>. Симметрично install.sh §11.
+if [[ "$MODE" == "drone" && "$ROLE" == "u1" ]]; then
+  CRSF_UNIT="joystick-to-crsf.service"
+  CRSF_LABEL="joystick-to-crsf"
+  HAS_SERIAL=0
+  STATS_MARKER="udp tx="
+else
+  CRSF_UNIT="crsf-bridge@${CRSF_INST}.service"
+  CRSF_LABEL="crsf-bridge@${CRSF_INST}"
+  HAS_SERIAL=1
+  STATS_MARKER="uart->udp"
 fi
 
 # --- цветной вывод -----------------------------------------------------------
@@ -63,11 +83,11 @@ section() { echo; printf '== %s\n' "$1"; }
 
 section "systemd units"
 
-# CRSF-мост: один инстанс на роль — u1=@p1 (от пульта), u2=@elrs (к ELRS).
-if systemctl is-active --quiet "crsf-bridge@${CRSF_INST}.service"; then
-  pass "crsf-bridge@${CRSF_INST} активен"
+# CRSF/управление: юнит зависит от MODE (drone+u1=joystick-to-crsf, иначе crsf-bridge@<inst>).
+if systemctl is-active --quiet "$CRSF_UNIT"; then
+  pass "$CRSF_LABEL активен"
 else
-  fail "crsf-bridge@${CRSF_INST} НЕ активен (см. \`systemctl status crsf-bridge@${CRSF_INST}\`)"
+  fail "$CRSF_LABEL НЕ активен (см. \`systemctl status $CRSF_LABEL\`)"
 fi
 
 # Видео — на каждой роли свой юнит.
@@ -79,20 +99,24 @@ fi
 
 section "CRSF serial device"
 
-# Имя устройства берём из env-файла моста, не хардкодим: железо разное по ролям —
-# u1: CH340 → /dev/ttyUSB0 (raw, без udev-symlink — CH340 даёт SerialNumber=0);
-# u2: /dev/ttyS7 (аппаратный UART7 RK3588, не USB — symlink неприменим).
-CRSF_ENV="/etc/u1u2-bridge/crsf-${CRSF_INST}.env"
-if [[ ! -f "$CRSF_ENV" ]]; then
-  fail "$CRSF_ENV не найден — install.sh не отработал?"
+if [[ "$HAS_SERIAL" != 1 ]]; then
+  pass "serial N/A — plan B (USB-HID джойстик, без UART-адаптера)"
 else
-  SERIAL_DEV="$(awk -F= '/^SERIAL_DEV=/ {v=$2} END {print v}' "$CRSF_ENV")"
-  if [[ -z "$SERIAL_DEV" ]]; then
-    fail "SERIAL_DEV не задан в $CRSF_ENV"
-  elif [[ -e "$SERIAL_DEV" ]]; then
-    pass "$SERIAL_DEV существует (SERIAL_DEV из $CRSF_ENV)"
+  # Имя устройства берём из env-файла моста, не хардкодим: железо разное по ролям —
+  # u1: CH340 → /dev/ttyUSB0 (raw, без udev-symlink — CH340 даёт SerialNumber=0);
+  # u2: /dev/ttyS7 (аппаратный UART7 RK3588, не USB — symlink неприменим).
+  CRSF_ENV="/etc/u1u2-bridge/crsf-${CRSF_INST}.env"
+  if [[ ! -f "$CRSF_ENV" ]]; then
+    fail "$CRSF_ENV не найден — install.sh не отработал?"
   else
-    fail "$SERIAL_DEV отсутствует — устройство не подключено / UART7 overlay не загружен (см. $CRSF_ENV)"
+    SERIAL_DEV="$(awk -F= '/^SERIAL_DEV=/ {v=$2} END {print v}' "$CRSF_ENV")"
+    if [[ -z "$SERIAL_DEV" ]]; then
+      fail "SERIAL_DEV не задан в $CRSF_ENV"
+    elif [[ -e "$SERIAL_DEV" ]]; then
+      pass "$SERIAL_DEV существует (SERIAL_DEV из $CRSF_ENV)"
+    else
+      fail "$SERIAL_DEV отсутствует — устройство не подключено / UART7 overlay не загружен (см. $CRSF_ENV)"
+    fi
   fi
 fi
 
@@ -132,14 +156,14 @@ fi
 
 section "мост гоняет байты (требует ≥10s после старта)"
 
-# crsf_bridge.py пишет статистику "uart->udp=... B/s" раз в 10 секунд.
-# Если в логе за последнюю минуту такой строки нет — либо сервис только
-# что стартовал (подожди), либо физически нет трафика на UART.
-if journalctl -u "crsf-bridge@${CRSF_INST}" --since '1 min ago' --no-pager 2>/dev/null \
-     | grep -q 'uart->udp'; then
-  pass "crsf-bridge@${CRSF_INST} пишет stats line за последнюю минуту"
+# Управляющий юнит пишет stats-строку раз в 10 секунд: crsf_bridge.py — "uart->udp",
+# joystick_to_crsf.py — "udp tx=" (маркер выбран по MODE выше). Нет строки за минуту —
+# сервис только стартовал (подожди) либо нет трафика (UART/джойстик).
+if journalctl -u "$CRSF_LABEL" --since '1 min ago' --no-pager 2>/dev/null \
+     | grep -q "$STATS_MARKER"; then
+  pass "$CRSF_LABEL пишет stats line за последнюю минуту"
 else
-  warn "crsf-bridge@${CRSF_INST} без stats line за минуту — сервис только стартовал? Или ELRS не подключён?"
+  warn "$CRSF_LABEL без stats line за минуту — сервис только стартовал? Или вход не подключён?"
 fi
 
 # --- итог ---------------------------------------------------------------------
