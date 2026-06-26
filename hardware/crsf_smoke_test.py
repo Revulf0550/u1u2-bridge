@@ -8,7 +8,7 @@
     sudo python3 ~/hardware/crsf_smoke_test.py
 
 Деплой с ноута (из корня репо):
-    scp hardware/crsf_smoke_test.py ubuntu@192.168.31.100:~/hardware/
+    scp hardware/crsf_smoke_test.py ubuntu@<u2-pi-ip>:~/hardware/
 """
 
 import logging

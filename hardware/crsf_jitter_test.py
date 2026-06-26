@@ -15,7 +15,7 @@ throughput (B/s, % от 420k baud) и min/max интервалов между п
     # Ctrl+C через 30+ секунд для итоговой статистики
 
 Деплой с ноута (из корня репо):
-    scp hardware/crsf_jitter_test.py ubuntu@192.168.31.100:~/hardware/
+    scp hardware/crsf_jitter_test.py ubuntu@<u2-pi-ip>:~/hardware/
 """
 
 import logging
